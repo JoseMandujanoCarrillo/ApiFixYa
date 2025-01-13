@@ -94,7 +94,7 @@ router.post('/login', async (req, res) => {
     if (!validPassword) return res.status(400).send('Invalid password');
 
     // Generar token
-    const token = jwt.sign({ id: cleaner.id, email: cleaner.email }, SECRET_KEY, { expiresIn: '1h' });
+    const token = jwt.sign({ cleaner_id: cleaner.cleaner_id, email: cleaner.email }, SECRET_KEY, { expiresIn: '1h' });
     res.json({ token });
   } catch (err) {
     res.status(500).send(err.message);
@@ -115,7 +115,7 @@ router.post('/login', async (req, res) => {
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const cleaner = await Cleaner.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
+    const cleaner = await Cleaner.findByPk(req.user.cleaner_id, { attributes: { exclude: ['password'] } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
     res.json(cleaner);
   } catch (err) {
