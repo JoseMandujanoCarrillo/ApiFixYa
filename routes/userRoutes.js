@@ -138,9 +138,10 @@ router.post('/login', async (req, res) => {
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const cleaner = await Cleaner.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
-    if (!cleaner) return res.status(404).send('Cleaner not found');
-    res.json(cleaner);
+    // Cambiar 'Cleaner' por 'User'
+    const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
+    if (!user) return res.status(404).send('User not found');
+    res.json(user);
   } catch (err) {
     res.status(500).send(err.message);
   }
