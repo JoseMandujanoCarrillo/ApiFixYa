@@ -1,6 +1,34 @@
 const express = require('express');
-const Cleaner = require('../models/Cleaner');
+const { authenticate, authorizeRole } = require('../middleware/auth');
+const Service = require('../models/Service');
 const router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Services
+ *   description: Gestión de servicios de limpieza
+ */
+
+// Ruta para que los usuarios vean sus servicios
+router.get('/', authenticate, authorizeRole('user'), async (req, res) => {
+  try {
+    const services = await Service.findAll({ where: { userId: req.user.id } });
+    res.json(services);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// Ruta para que los limpiadores vean los servicios que los contrataron
+router.get('/for-cleaner', authenticate, authorizeRole('cleaner'), async (req, res) => {
+  try {
+    const services = await Service.findAll({ where: { cleanerId: req.user.id } });
+    res.json(services);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 
 /**
  * @swagger
