@@ -18,6 +18,27 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Lista de servicios
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   cleanerId:
+ *                     type: integer
+ *                   description:
+ *                     type: string
+ *                   price:
+ *                     type: number
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *                   updatedAt:
+ *                     type: string
+ *                     format: date-time
  */
 router.get('/', async (req, res) => {
   try {
@@ -44,6 +65,27 @@ router.get('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Servicio encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 cleanerId:
+ *                   type: integer
+ *                 description:
+ *                   type: string
+ *                 price:
+ *                   type: number
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *       404:
+ *         description: Servicio no encontrado
  */
 router.get('/:id', async (req, res) => {
   try {
@@ -77,10 +119,32 @@ router.get('/:id', async (req, res) => {
  *     responses:
  *       201:
  *         description: Servicio creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 cleanerId:
+ *                   type: integer
+ *                 description:
+ *                   type: string
+ *                 price:
+ *                   type: number
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *       500:
+ *         description: Error al crear el servicio
  */
 router.post('/', async (req, res) => {
   try {
-    const service = await Service.create(req.body);
+    const { cleanerId, description, price } = req.body;
+    const service = await Service.create({ cleanerId, description, price });
     res.status(201).json(service);
   } catch (err) {
     res.status(500).send(err.message);
@@ -116,6 +180,10 @@ router.post('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Servicio actualizado
+ *       404:
+ *         description: Servicio no encontrado
+ *       500:
+ *         description: Error al actualizar el servicio
  */
 router.put('/:id', async (req, res) => {
   try {
@@ -144,6 +212,10 @@ router.put('/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: Servicio eliminado
+ *       404:
+ *         description: Servicio no encontrado
+ *       500:
+ *         description: Error al eliminar el servicio
  */
 router.delete('/:id', async (req, res) => {
   try {
