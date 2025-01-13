@@ -16,16 +16,19 @@ const SECRET_KEY = 'your_secure_secret_key'; // Cambia esta clave por una más s
 // Middleware para autenticar JWT
 const authenticateToken = (req, res, next) => {
   const token = req.headers['authorization'];
+  console.log('Token received:', token); // Esto te ayudará a verificar el valor del token
   if (!token) return res.status(401).send('Access Denied');
 
   try {
-    const verified = jwt.verify(token, SECRET_KEY);
+    const tokenClean = token.startsWith('Bearer ') ? token.slice(7, token.length) : token;
+    const verified = jwt.verify(tokenClean, SECRET_KEY);
     req.user = verified;
     next();
   } catch (err) {
     res.status(403).send('Invalid Token');
   }
 };
+
 
 /**
  * @swagger
