@@ -1,6 +1,10 @@
 const express = require('express');
-const User = require('../models/User');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User'); // Asegúrate de que el modelo esté correctamente configurado
 const router = express.Router();
+
+const SECRET_KEY = 'your_secure_secret_key'; // Cambia esta clave por una más segura y mantenla en un entorno seguro, como variables de entorno
 
 /**
  * @swagger
@@ -9,57 +13,25 @@ const router = express.Router();
  *   description: Gestión de usuarios
  */
 
-/**
- * @swagger
- * /users:
- *   get:
- *     summary: Obtener todos los usuarios
- *     tags: [User]
- *     responses:
- *       200:
- *         description: Lista de usuarios
- */
-router.get('/', async (req, res) => {
+// Middleware para autenticar JWT
+const authenticateToken = (req, res, next) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).send('Access Denied');
+
   try {
-    const users = await User.findAll();
-    res.json(users);
+    const verified = jwt.verify(token, SECRET_KEY);
+    req.user = verified;
+    next();
   } catch (err) {
-    res.status(500).send(err.message);
+    res.status(403).send('Invalid Token');
   }
-});
+};
 
 /**
  * @swagger
- * /users/{id}:
- *   get:
- *     summary: Obtener un usuario por ID
- *     tags: [User]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del usuario
- *     responses:
- *       200:
- *         description: Usuario encontrado
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await User.findByPk(req.params.id);
-    if (!user) return res.status(404).send('User not found');
-    res.json(user);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users:
+ * /users/register:
  *   post:
- *     summary: Crear un nuevo usuario
+ *     summary: Registrar un nuevo usuario
  *     tags: [User]
  *     requestBody:
  *       required: true
@@ -80,12 +52,28 @@ router.get('/:id', async (req, res) => {
  *                 type: number
  *     responses:
  *       201:
- *         description: Usuario creado
+ *         description: Usuario registrado exitosamente
  */
-router.post('/', async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const user = await User.create(req.body);
-    res.status(201).json(user);
+    const { name, email, password, latitude, longitude } = req.body;
+
+    // Verificar si el usuario ya existe
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) return res.status(400).send('Email already registered');
+
+    // Encriptar contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear el usuario
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      latitude,
+      longitude,
+    });
+    res.status(201).json({ message: 'User registered successfully', user });
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -93,17 +81,10 @@ router.post('/', async (req, res) => {
 
 /**
  * @swagger
- * /users/{id}:
- *   put:
- *     summary: Actualizar un usuario por ID
+ * /users/login:
+ *   post:
+ *     summary: Iniciar sesión
  *     tags: [User]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del usuario
  *     requestBody:
  *       required: true
  *       content:
@@ -111,26 +92,33 @@ router.post('/', async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               name:
- *                 type: string
  *               email:
  *                 type: string
  *               password:
  *                 type: string
- *               latitude:
- *                 type: number
- *               longitude:
- *                 type: number
  *     responses:
  *       200:
- *         description: Usuario actualizado
+ *         description: Inicio de sesión exitoso, devuelve un token
  */
-router.put('/:id', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id);
+    const { email, password } = req.body;
+
+    // Verificar si el usuario existe
+    const user = await User.findOne({ where: { email } });
     if (!user) return res.status(404).send('User not found');
-    await user.update(req.body);
-    res.json(user);
+
+    // Comparar contraseñas
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) return res.status(400).send('Invalid password');
+
+    // Generar token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      SECRET_KEY,
+      { expiresIn: '1h' }
+    );
+    res.json({ token, message: 'Login successful' });
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -138,30 +126,27 @@ router.put('/:id', async (req, res) => {
 
 /**
  * @swagger
- * /users/{id}:
- *   delete:
- *     summary: Eliminar un usuario por ID
+ * /users/me:
+ *   get:
+ *     summary: Obtener la información del usuario autenticado
  *     tags: [User]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del usuario
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Usuario eliminado
+ *         description: Información del usuario
  */
-router.delete('/:id', async (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.id);
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] },
+    });
     if (!user) return res.status(404).send('User not found');
-    await user.destroy();
-    res.send('User deleted');
+    res.json(user);
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
+// Exportar el router
 module.exports = router;

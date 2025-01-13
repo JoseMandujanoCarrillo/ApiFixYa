@@ -1,28 +1,26 @@
-const swaggerJsDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
-
-const options = {
+const swaggerJsDoc = require('swagger-jsdoc');
+const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'FixYa API',
       version: '1.0.0',
-      description: 'API para gestionar servicios de limpieza y usuarios',
+      description: 'API para la gestión de servicios de limpieza',
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Servidor local',
+        url: 'https://apifixya.onrender.com',
       },
     ],
   },
-  apis: ['./routes/*.js', './models/*.js'], // Archivos donde se documentan las rutas y modelos
+  apis: ['./routes/*.js'],
 };
 
-const swaggerSpec = swaggerJsDoc(options);
+const swaggerSpec = swaggerJsDoc(swaggerOptions);
 
-const setupSwagger = (app) => {
+function setupSwagger(app) {
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-};
+}
 
 module.exports = setupSwagger;
