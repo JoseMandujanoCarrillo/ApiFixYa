@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); // Asegúrate de que el modelo esté correctamente configurado
 const router = express.Router();
-
+const { authenticate } = require('../middleware/auth');
 const SECRET_KEY = 'your_secure_secret_key'; // Cambia esta clave por una más segura y mantenla en un entorno seguro, como variables de entorno
 
 /**
@@ -136,17 +136,14 @@ router.post('/login', async (req, res) => {
  *       200:
  *         description: Información del usuario
  */
-router.get('/me', authenticateToken, async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password'] },
-    });
-    if (!user) return res.status(404).send('User not found');
-    res.json(user);
+    const cleaner = await Cleaner.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
+    if (!cleaner) return res.status(404).send('Cleaner not found');
+    res.json(cleaner);
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
-// Exportar el router
 module.exports = router;
