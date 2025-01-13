@@ -1,94 +1,25 @@
 const express = require('express');
-const { authenticate, authorizeRole } = require('../middleware/auth');
-const Service = require('../models/Service');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const Cleaner = require('../models/Cleaner');
+const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
-/**
- * @swagger
- * tags:
- *   name: Services
- *   description: Gestión de servicios de limpieza
- */
-
-// Ruta para que los usuarios vean sus servicios
-router.get('/', authenticate, authorizeRole('user'), async (req, res) => {
-  try {
-    const services = await Service.findAll({ where: { userId: req.user.id } });
-    res.json(services);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-// Ruta para que los limpiadores vean los servicios que los contrataron
-router.get('/for-cleaner', authenticate, authorizeRole('cleaner'), async (req, res) => {
-  try {
-    const services = await Service.findAll({ where: { cleanerId: req.user.id } });
-    res.json(services);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
+const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
 
 /**
  * @swagger
  * tags:
- *   name: Cleaner
+ *   name: Cleaners
  *   description: Gestión de limpiadores
  */
 
 /**
  * @swagger
- * /cleaners:
- *   get:
- *     summary: Obtener todos los limpiadores
- *     tags: [Cleaner]
- *     responses:
- *       200:
- *         description: Lista de limpiadores
- */
-router.get('/', async (req, res) => {
-  try {
-    const cleaners = await Cleaner.findAll();
-    res.json(cleaners);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /cleaners/{id}:
- *   get:
- *     summary: Obtener un limpiador por ID
- *     tags: [Cleaner]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del limpiador
- *     responses:
- *       200:
- *         description: Limpiador encontrado
- */
-router.get('/:id', async (req, res) => {
-  try {
-    const cleaner = await Cleaner.findByPk(req.params.id);
-    if (!cleaner) return res.status(404).send('Cleaner not found');
-    res.json(cleaner);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /cleaners:
+ * /cleaners/register:
  *   post:
- *     summary: Crear un nuevo limpiador
- *     tags: [Cleaner]
+ *     summary: Registrar un nuevo limpiador
+ *     tags: [Cleaners]
  *     requestBody:
  *       required: true
  *       content:
@@ -108,11 +39,21 @@ router.get('/:id', async (req, res) => {
  *                 type: number
  *     responses:
  *       201:
- *         description: Limpiador creado
+ *         description: Limpiador registrado exitosamente
  */
-router.post('/', async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
-    const cleaner = await Cleaner.create(req.body);
+    const { name, email, password, latitude, longitude } = req.body;
+
+    // Verificar si el limpiador ya existe
+    const existingCleaner = await Cleaner.findOne({ where: { email } });
+    if (existingCleaner) return res.status(400).send('Email already registered');
+
+    // Encriptar contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear el limpiador
+    const cleaner = await Cleaner.create({ name, email, password: hashedPassword, latitude, longitude });
     res.status(201).json(cleaner);
   } catch (err) {
     res.status(500).send(err.message);
@@ -121,17 +62,10 @@ router.post('/', async (req, res) => {
 
 /**
  * @swagger
- * /cleaners/{id}:
- *   put:
- *     summary: Actualizar un limpiador por ID
- *     tags: [Cleaner]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del limpiador
+ * /cleaners/login:
+ *   post:
+ *     summary: Iniciar sesión como limpiador
+ *     tags: [Cleaners]
  *     requestBody:
  *       required: true
  *       content:
@@ -139,26 +73,29 @@ router.post('/', async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               name:
- *                 type: string
  *               email:
  *                 type: string
  *               password:
  *                 type: string
- *               latitude:
- *                 type: number
- *               longitude:
- *                 type: number
  *     responses:
  *       200:
- *         description: Limpiador actualizado
+ *         description: Inicio de sesión exitoso, devuelve un token
  */
-router.put('/:id', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    const cleaner = await Cleaner.findByPk(req.params.id);
+    const { email, password } = req.body;
+
+    // Verificar si el limpiador existe
+    const cleaner = await Cleaner.findOne({ where: { email } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
-    await cleaner.update(req.body);
-    res.json(cleaner);
+
+    // Comparar contraseñas
+    const validPassword = await bcrypt.compare(password, cleaner.password);
+    if (!validPassword) return res.status(400).send('Invalid password');
+
+    // Generar token
+    const token = jwt.sign({ id: cleaner.id, email: cleaner.email }, SECRET_KEY, { expiresIn: '1h' });
+    res.json({ token });
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -166,27 +103,21 @@ router.put('/:id', async (req, res) => {
 
 /**
  * @swagger
- * /cleaners/{id}:
- *   delete:
- *     summary: Eliminar un limpiador por ID
- *     tags: [Cleaner]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del limpiador
+ * /cleaners/me:
+ *   get:
+ *     summary: Obtener la información del limpiador autenticado
+ *     tags: [Cleaners]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Limpiador eliminado
+ *         description: Información del limpiador autenticado
  */
-router.delete('/:id', async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
-    const cleaner = await Cleaner.findByPk(req.params.id);
+    const cleaner = await Cleaner.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
-    await cleaner.destroy();
-    res.send('Cleaner deleted');
+    res.json(cleaner);
   } catch (err) {
     res.status(500).send(err.message);
   }

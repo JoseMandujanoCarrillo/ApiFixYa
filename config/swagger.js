@@ -1,5 +1,6 @@
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsDoc = require('swagger-jsdoc');
+
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
@@ -13,8 +14,22 @@ const swaggerOptions = {
         url: 'https://apifixya.onrender.com',
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT', // Especifica que es un token JWT
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [], // Aplica bearerAuth como esquema global si es necesario
+      },
+    ],
   },
-  apis: ['./routes/*.js'],
+  apis: ['./routes/*.js'], // Ruta donde se encuentran tus archivos con anotaciones Swagger
 };
 
 const swaggerSpec = swaggerJsDoc(swaggerOptions);
