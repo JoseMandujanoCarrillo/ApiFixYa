@@ -1,41 +1,25 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Asegúrate de que el modelo esté correctamente configurado
-const router = express.Router();
+const User = require('../models/User'); // Modelo User correctamente configurado
 const { authenticate } = require('../middleware/auth');
-const SECRET_KEY = 'your_secure_secret_key'; // Cambia esta clave por una más segura y mantenla en un entorno seguro, como variables de entorno
+const router = express.Router();
+
+const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
 
 /**
  * @swagger
  * tags:
- *   name: User
+ *   name: Users
  *   description: Gestión de usuarios
  */
-
-// Middleware para autenticar JWT
-const authenticateToken = (req, res, next) => {
-  const token = req.headers['authorization'];
-  console.log('Token received:', token); // Esto te ayudará a verificar el valor del token
-  if (!token) return res.status(401).send('Access Denied');
-
-  try {
-    const tokenClean = token.startsWith('Bearer ') ? token.slice(7, token.length) : token;
-    const verified = jwt.verify(tokenClean, SECRET_KEY);
-    req.user = verified;
-    next();
-  } catch (err) {
-    res.status(403).send('Invalid Token');
-  }
-};
-
 
 /**
  * @swagger
  * /users/register:
  *   post:
  *     summary: Registrar un nuevo usuario
- *     tags: [User]
+ *     tags: [Users]
  *     requestBody:
  *       required: true
  *       content:
@@ -69,14 +53,8 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Crear el usuario
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      latitude,
-      longitude,
-    });
-    res.status(201).json({ message: 'User registered successfully', user });
+    const user = await User.create({ name, email, password: hashedPassword, latitude, longitude });
+    res.status(201).json(user);
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -86,8 +64,8 @@ router.post('/register', async (req, res) => {
  * @swagger
  * /users/login:
  *   post:
- *     summary: Iniciar sesión
- *     tags: [User]
+ *     summary: Iniciar sesión como usuario
+ *     tags: [Users]
  *     requestBody:
  *       required: true
  *       content:
@@ -116,12 +94,8 @@ router.post('/login', async (req, res) => {
     if (!validPassword) return res.status(400).send('Invalid password');
 
     // Generar token
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      SECRET_KEY,
-      { expiresIn: '1h' }
-    );
-    res.json({ token, message: 'Login successful' });
+    const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
+    res.json({ token });
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -132,16 +106,15 @@ router.post('/login', async (req, res) => {
  * /users/me:
  *   get:
  *     summary: Obtener la información del usuario autenticado
- *     tags: [User]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Información del usuario
+ *         description: Información del usuario autenticado
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
-    // Cambiar 'Cleaner' por 'User'
     const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
     if (!user) return res.status(404).send('User not found');
     res.json(user);
