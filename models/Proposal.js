@@ -22,11 +22,11 @@ const sequelize = require('../config/database');
  *           type: string
  *           description: Estado de la propuesta (pending, accepted, rejected)
  */
-const Proposal = sequelize.define('Proposal', {
+const proposal = sequelize.define('proposal', {
   serviceId: { type: DataTypes.INTEGER, allowNull: false },
   userId: { type: DataTypes.INTEGER, allowNull: false },
   date: { type: DataTypes.DATE },
   status: { type: DataTypes.STRING, defaultValue: 'pending' },
 });
 
-module.exports = Proposal;
+module.exports = proposal;

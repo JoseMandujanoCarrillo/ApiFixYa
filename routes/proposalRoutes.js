@@ -1,11 +1,11 @@
 const express = require('express');
-const Proposal = require('../models/Proposal');
+const proposal = require('../models/Proposal');
 const router = express.Router();
 
 /**
  * @swagger
  * tags:
- *   name: Proposal
+ *   name: proposal
  *   description: Gestión de propuestas
  */
 
@@ -14,7 +14,7 @@ const router = express.Router();
  * /proposals:
  *   get:
  *     summary: Obtener todas las propuestas con paginación
- *     tags: [Proposal]
+ *     tags: [proposal]
  *     parameters:
  *       - in: query
  *         name: page
@@ -63,7 +63,7 @@ router.get('/', async (req, res) => {
   const offset = (parseInt(page) - 1) * limit;
 
   try {
-    const { count, rows } = await Proposal.findAndCountAll({ limit, offset });
+    const { count, rows } = await proposal.findAndCountAll({ limit, offset });
     res.json({
       totalItems: count,
       totalPages: Math.ceil(count / limit),
@@ -80,7 +80,7 @@ router.get('/', async (req, res) => {
  * /proposals/{id}:
  *   get:
  *     summary: Obtener una propuesta por ID
- *     tags: [Proposal]
+ *     tags: [proposal]
  *     parameters:
  *       - in: path
  *         name: id
@@ -94,8 +94,8 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const proposal = await Proposal.findByPk(req.params.id);
-    if (!proposal) return res.status(404).send('Proposal not found');
+    const proposal = await proposal.findByPk(req.params.id);
+    if (!proposal) return res.status(404).send('proposal not found');
     res.json(proposal);
   } catch (err) {
     res.status(500).send(err.message);
@@ -107,7 +107,7 @@ router.get('/:id', async (req, res) => {
  * /proposals:
  *   post:
  *     summary: Crear una nueva propuesta
- *     tags: [Proposal]
+ *     tags: [proposal]
  *     requestBody:
  *       required: true
  *       content:
@@ -130,7 +130,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const proposal = await Proposal.create(req.body);
+    const proposal = await proposal.create(req.body);
     res.status(201).json(proposal);
   } catch (err) {
     res.status(500).send(err.message);
@@ -142,7 +142,7 @@ router.post('/', async (req, res) => {
  * /proposals/{id}:
  *   put:
  *     summary: Actualizar una propuesta por ID
- *     tags: [Proposal]
+ *     tags: [proposal]
  *     parameters:
  *       - in: path
  *         name: id
@@ -172,8 +172,8 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const proposal = await Proposal.findByPk(req.params.id);
-    if (!proposal) return res.status(404).send('Proposal not found');
+    const proposal = await proposal.findByPk(req.params.id);
+    if (!proposal) return res.status(404).send('proposal not found');
     await proposal.update(req.body);
     res.json(proposal);
   } catch (err) {
@@ -186,7 +186,7 @@ router.put('/:id', async (req, res) => {
  * /proposals/{id}:
  *   delete:
  *     summary: Eliminar una propuesta por ID
- *     tags: [Proposal]
+ *     tags: [proposal]
  *     parameters:
  *       - in: path
  *         name: id
@@ -200,10 +200,10 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const proposal = await Proposal.findByPk(req.params.id);
-    if (!proposal) return res.status(404).send('Proposal not found');
+    const proposal = await proposal.findByPk(req.params.id);
+    if (!proposal) return res.status(404).send('proposal not found');
     await proposal.destroy();
-    res.send('Proposal deleted');
+    res.send('proposal deleted');
   } catch (err) {
     res.status(500).send(err.message);
   }
