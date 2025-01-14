@@ -13,37 +13,67 @@ const router = express.Router();
  * @swagger
  * /services:
  *   get:
- *     summary: Obtener todos los servicios
+ *     summary: Obtener todos los servicios con paginación
  *     tags: [Service]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Número de la página (por defecto 1)
+ *       - in: query
+ *         name: size
+ *         schema:
+ *           type: integer
+ *         description: Cantidad de servicios por página (por defecto 10)
  *     responses:
  *       200:
- *         description: Lista de servicios
+ *         description: Lista de servicios con paginación
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   cleanerId:
- *                     type: integer
- *                   description:
- *                     type: string
- *                   price:
- *                     type: number
- *                   createdAt:
- *                     type: string
- *                     format: date-time
- *                   updatedAt:
- *                     type: string
- *                     format: date-time
+ *               type: object
+ *               properties:
+ *                 totalItems:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       cleanerId:
+ *                         type: integer
+ *                       description:
+ *                         type: string
+ *                       price:
+ *                         type: number
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
  */
 router.get('/', async (req, res) => {
   try {
-    const services = await Service.findAll();
-    res.json(services);
+    const { page = 1, size = 10 } = req.query;
+    const limit = parseInt(size, 10);
+    const offset = (parseInt(page, 10) - 1) * limit;
+
+    const { count, rows } = await Service.findAndCountAll({ limit, offset });
+
+    res.json({
+      totalItems: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page, 10),
+      data: rows,
+    });
   } catch (err) {
     res.status(500).send(err.message);
   }
