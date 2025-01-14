@@ -13,16 +13,63 @@ const router = express.Router();
  * @swagger
  * /proposals:
  *   get:
- *     summary: Obtener todas las propuestas
+ *     summary: Obtener todas las propuestas con paginación
  *     tags: [Proposal]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Número de la página (por defecto 1)
+ *       - in: query
+ *         name: size
+ *         schema:
+ *           type: integer
+ *         description: Cantidad de elementos por página (por defecto 10)
  *     responses:
  *       200:
- *         description: Lista de propuestas
+ *         description: Lista de propuestas con paginación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalItems:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 proposals:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       serviceId:
+ *                         type: integer
+ *                       userId:
+ *                         type: integer
+ *                       date:
+ *                         type: string
+ *                         format: date
+ *                       status:
+ *                         type: string
  */
 router.get('/', async (req, res) => {
+  const { page = 1, size = 10 } = req.query;
+  const limit = parseInt(size);
+  const offset = (parseInt(page) - 1) * limit;
+
   try {
-    const proposals = await Proposal.findAll();
-    res.json(proposals);
+    const { count, rows } = await Proposal.findAndCountAll({ limit, offset });
+    res.json({
+      totalItems: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+      proposals: rows,
+    });
   } catch (err) {
     res.status(500).send(err.message);
   }
