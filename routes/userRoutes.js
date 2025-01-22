@@ -137,14 +137,54 @@ router.get('/me', authenticate, async (req, res) => {
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: Número de página (por defecto es 1)
+ *         required: false
+ *         schema:
+ *           type: integer
+ *       - name: size
+ *         in: query
+ *         description: Cantidad de usuarios por página (por defecto es 10)
+ *         required: false
+ *         schema:
+ *           type: integer
  *     responses:
  *       200:
- *         description: Lista completa de usuarios
+ *         description: Lista paginada de usuarios
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalUsers:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
  */
 router.get('/', authenticate, checkAdmin, async (req, res) => {
   try {
-    const users = await User.findAll(); // Obtener todos los usuarios
-    res.json(users);
+    const page = parseInt(req.query.page) || 1; // Página actual (por defecto 1)
+    const size = parseInt(req.query.size) || 10; // Tamaño de la página (por defecto 10)
+
+    const { count, rows } = await User.findAndCountAll({
+      offset: (page - 1) * size,
+      limit: size,
+    });
+
+    res.json({
+      totalUsers: count,
+      totalPages: Math.ceil(count / size),
+      currentPage: page,
+      users: rows,
+    });
   } catch (err) {
     res.status(500).send(err.message);
   }
