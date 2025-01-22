@@ -7,12 +7,18 @@ const router = express.Router();
 
 const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
 
+const ADMIN_EMAIL = 'UserAdmin@gmail.com'; // Email del administrador
+
 /**
- * @swagger
- * tags:
- *   name: Users
- *   description: Gestión de usuarios
+ * Middleware para verificar si el usuario es administrador
  */
+function checkAdmin(req, res, next) {
+  if (req.user.email === ADMIN_EMAIL) {
+    next();
+  } else {
+    return res.status(403).send('Access denied: Admin only.');
+  }
+}
 
 /**
  * @swagger
@@ -118,6 +124,27 @@ router.get('/me', authenticate, async (req, res) => {
     const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
     if (!user) return res.status(404).send('User not found');
     res.json(user);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Obtener la lista completa de usuarios (Solo para administradores)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista completa de usuarios
+ */
+router.get('/', authenticate, checkAdmin, async (req, res) => {
+  try {
+    const users = await User.findAll(); // Obtener todos los usuarios
+    res.json(users);
   } catch (err) {
     res.status(500).send(err.message);
   }
