@@ -123,4 +123,43 @@ router.get('/me', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /cleaners:
+ *   get:
+ *     summary: Obtener todos los limpiadores
+ *     tags: [Cleaners]
+ *     responses:
+ *       200:
+ *         description: Lista de todos los limpiadores (sin contraseñas)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   cleaner_id:
+ *                     type: integer
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   latitude:
+ *                     type: number
+ *                   longitude:
+ *                     type: number
+ */
+app.get('/cleaners', async (req, res) => {
+  try {
+    const cleaners = await Cleaner.findAll({
+      attributes: { exclude: ['password'] }, // Excluir el campo de la contraseña
+    });
+    res.json(cleaners);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+
 module.exports = router;
