@@ -190,4 +190,48 @@ router.get('/', authenticate, checkAdmin, async (req, res) => {
   }
 });
 
-module.exports = router;
+
+/**
+ * @swagger
+ * /cleaners:
+ *   get:
+ *     summary: Listar todos los limpiadores
+ *     tags: [Cleaners]
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: Número de página (por defecto 1)
+ *         schema:
+ *           type: integer
+ *       - name: size
+ *         in: query
+ *         description: Cantidad de limpiadores por página (por defecto 10)
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Lista paginada de limpiadores
+ */
+router.get('/', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const size = parseInt(req.query.size) || 10;
+    const { count, rows } = await Cleaner.findAndCountAll({
+      attributes: { exclude: ['password'] },
+      offset: (page - 1) * size,
+      limit: size,
+    });
+
+    res.json({
+      totalCleaners: count,
+      totalPages: Math.ceil(count / size),
+      currentPage: page,
+      cleaners: rows,
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+
+module.exports = router
