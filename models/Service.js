@@ -20,6 +20,14 @@ const Service = sequelize.define(
     price: {
       type: DataTypes.FLOAT,
     },
+    name: {
+      type: DataTypes.BLOB('long'),  // Usando BYTEA, que en Sequelize es BLOB
+      allowNull: false,               // Hacemos que sea obligatorio
+    },
+    image: {
+      type: DataTypes.BLOB('long'),   // Usando BYTEA, que en Sequelize es BLOB
+      allowNull: true,                // Permite que sea opcional
+    },
     createdAt: {
       type: DataTypes.DATE,
       field: 'created_at', // Mapea a la columna de la base de datos

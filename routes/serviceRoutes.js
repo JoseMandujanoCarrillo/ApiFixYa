@@ -53,6 +53,11 @@ const router = express.Router();
  *                         type: string
  *                       price:
  *                         type: number
+ *                       name:
+ *                         type: string
+ *                       image:
+ *                         type: string
+ *                         format: byte
  *                       createdAt:
  *                         type: string
  *                         format: date-time
@@ -108,6 +113,11 @@ router.get('/', async (req, res) => {
  *                   type: string
  *                 price:
  *                   type: number
+ *                 name:
+ *                   type: string
+ *                 image:
+ *                   type: string
+ *                   format: byte
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -146,6 +156,11 @@ router.get('/:id', async (req, res) => {
  *                 type: string
  *               price:
  *                 type: number
+ *               name:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: byte
  *     responses:
  *       201:
  *         description: Servicio creado
@@ -162,6 +177,11 @@ router.get('/:id', async (req, res) => {
  *                   type: string
  *                 price:
  *                   type: number
+ *                 name:
+ *                   type: string
+ *                 image:
+ *                   type: string
+ *                   format: byte
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -173,8 +193,8 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { cleanerId, description, price } = req.body;
-    const service = await Service.create({ cleanerId, description, price });
+    const { cleanerId, description, price, name, image } = req.body;
+    const service = await Service.create({ cleanerId, description, price, name, image });
     res.status(201).json(service);
   } catch (err) {
     res.status(500).send(err.message);
@@ -207,6 +227,11 @@ router.post('/', async (req, res) => {
  *                 type: string
  *               price:
  *                 type: number
+ *               name:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: byte
  *     responses:
  *       200:
  *         description: Servicio actualizado
