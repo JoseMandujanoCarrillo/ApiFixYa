@@ -58,6 +58,8 @@ const router = express.Router();
  *                       image:
  *                         type: string
  *                         format: byte
+ *                       imageUrl:
+ *                         type: string
  *                       createdAt:
  *                         type: string
  *                         format: date-time
@@ -118,6 +120,8 @@ router.get('/', async (req, res) => {
  *                 image:
  *                   type: string
  *                   format: byte
+ *                 imageUrl:
+ *                   type: string
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -161,40 +165,18 @@ router.get('/:id', async (req, res) => {
  *               image:
  *                 type: string
  *                 format: byte
+ *               imageUrl:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Servicio creado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 cleanerId:
- *                   type: integer
- *                 description:
- *                   type: string
- *                 price:
- *                   type: number
- *                 name:
- *                   type: string
- *                 image:
- *                   type: string
- *                   format: byte
- *                 createdAt:
- *                   type: string
- *                   format: date-time
- *                 updatedAt:
- *                   type: string
- *                   format: date-time
  *       500:
  *         description: Error al crear el servicio
  */
 router.post('/', async (req, res) => {
   try {
-    const { cleanerId, description, price, name, image } = req.body;
-    const service = await Service.create({ cleanerId, description, price, name, image });
+    const { cleanerId, description, price, name, image, imageUrl } = req.body;
+    const service = await Service.create({ cleanerId, description, price, name, image, imageUrl });
     res.status(201).json(service);
   } catch (err) {
     res.status(500).send(err.message);
@@ -232,6 +214,8 @@ router.post('/', async (req, res) => {
  *               image:
  *                 type: string
  *                 format: byte
+ *               imageUrl:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Servicio actualizado
