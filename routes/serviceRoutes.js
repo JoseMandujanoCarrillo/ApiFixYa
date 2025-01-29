@@ -55,9 +55,6 @@ const router = express.Router();
  *                         type: number
  *                       name:
  *                         type: string
- *                       image:
- *                         type: string
- *                         format: byte
  *                       imageUrl:
  *                         type: string
  *                       createdAt:
@@ -117,9 +114,6 @@ router.get('/', async (req, res) => {
  *                   type: number
  *                 name:
  *                   type: string
- *                 image:
- *                   type: string
- *                   format: byte
  *                 imageUrl:
  *                   type: string
  *                 createdAt:
@@ -162,9 +156,6 @@ router.get('/:id', async (req, res) => {
  *                 type: number
  *               name:
  *                 type: string
- *               image:
- *                 type: string
- *                 format: byte
  *               imageUrl:
  *                 type: string
  *     responses:
@@ -175,8 +166,8 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { cleanerId, description, price, name, image, imageUrl } = req.body;
-    const service = await Service.create({ cleanerId, description, price, name, image, imageUrl });
+    const { cleanerId, description, price, name, imageUrl } = req.body;
+    const service = await Service.create({ cleanerId, description, price, name, imageUrl });
     res.status(201).json(service);
   } catch (err) {
     res.status(500).send(err.message);
@@ -211,9 +202,6 @@ router.post('/', async (req, res) => {
  *                 type: number
  *               name:
  *                 type: string
- *               image:
- *                 type: string
- *                 format: byte
  *               imageUrl:
  *                 type: string
  *     responses:

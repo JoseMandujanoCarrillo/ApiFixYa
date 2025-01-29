@@ -24,10 +24,6 @@ const Service = sequelize.define(
       type: DataTypes.STRING, // Usamos STRING en lugar de BLOB para nombres
       allowNull: false, // Hacemos que sea obligatorio
     },
-    image: {
-      type: DataTypes.BLOB('long'), // Permite almacenar imágenes en formato binario
-      allowNull: true, // Campo opcional
-    },
     imageUrl: {
       type: DataTypes.STRING, // Representa la nueva columna image_url como una URL
       field: 'image_url', // Nombre real en la base de datos
