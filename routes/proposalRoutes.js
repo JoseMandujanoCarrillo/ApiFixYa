@@ -1,5 +1,6 @@
 const express = require('express');
 const Proposal = require('../models/Proposal'); // Importar el modelo corregido
+const { authenticate } = require('../middleware/auth'); // Importar el middleware de autenticación
 const router = express.Router();
 
 /**
