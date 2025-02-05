@@ -12,6 +12,68 @@ const router = express.Router();
 
 /**
  * @swagger
+ * /proposals/my:
+ *   get:
+ *     summary: Obtener las propuestas del usuario autenticado con paginación
+ *     tags: [Proposals]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Número de página (por defecto 1)
+ *       - in: query
+ *         name: size
+ *         schema:
+ *           type: integer
+ *         description: Cantidad de elementos por página (por defecto 10)
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas del usuario autenticado con paginación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalItems:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 proposals:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Proposal'
+ */
+router.get('/my', authenticate, async (req, res) => {
+  const { page = 1, size = 10 } = req.query;
+  const limit = parseInt(size);
+  const offset = (parseInt(page) - 1) * limit;
+
+  try {
+    // Filtrar las propuestas por el id del usuario autenticado (req.user.id)
+    const { count, rows } = await Proposal.findAndCountAll({
+      where: { userId: req.user.id },
+      limit,
+      offset
+    });
+
+    res.json({
+      totalItems: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
+      proposals: rows,
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
  * /proposals:
  *   get:
  *     summary: Obtener todas las propuestas con paginación
@@ -245,69 +307,5 @@ router.delete('/:id', async (req, res) => {
  *         createdAt: "2025-01-13T15:24:39.572Z"
  *         updatedAt: "2025-01-13T15:24:39.572Z"
  */
-
-module.exports = router;
-
-/**
- * @swagger
- * /proposals/my:
- *   get:
- *     summary: Obtener las propuestas del usuario autenticado con paginación
- *     tags: [Proposals]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *         description: Número de página (por defecto 1)
- *       - in: query
- *         name: size
- *         schema:
- *           type: integer
- *         description: Cantidad de elementos por página (por defecto 10)
- *     responses:
- *       200:
- *         description: Lista de propuestas del usuario autenticado con paginación
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalItems:
- *                   type: integer
- *                 totalPages:
- *                   type: integer
- *                 currentPage:
- *                   type: integer
- *                 proposals:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Proposal'
- */
-router.get('/my', authenticate, async (req, res) => {
-  const { page = 1, size = 10 } = req.query;
-  const limit = parseInt(size);
-  const offset = (parseInt(page) - 1) * limit;
-
-  try {
-    // Filtrar las propuestas por el id del usuario autenticado (req.user.id)
-    const { count, rows } = await Proposal.findAndCountAll({
-      where: { userId: req.user.id },
-      limit,
-      offset
-    });
-
-    res.json({
-      totalItems: count,
-      totalPages: Math.ceil(count / limit),
-      currentPage: parseInt(page),
-      proposals: rows,
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
 
 module.exports = router;
