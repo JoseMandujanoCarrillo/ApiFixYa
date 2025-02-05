@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database'); // Ajusta la ruta según tu proyecto
+const sequelize = require('../config/database');
 
 const User = sequelize.define(
   'User',
@@ -15,31 +15,36 @@ const User = sequelize.define(
     },
     email: {
       type: DataTypes.STRING,
-      allowNull: false,
       unique: true,
+      allowNull: false,
     },
     password: {
       type: DataTypes.STRING,
       allowNull: false,
     },
     latitude: {
-      type: DataTypes.DOUBLE,
+      type: DataTypes.FLOAT,
     },
     longitude: {
-      type: DataTypes.DOUBLE,
+      type: DataTypes.FLOAT,
     },
-    created_at: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
+    imageUrl: {
+      type: DataTypes.STRING,
+      field: 'image_url', // Nombre real en la base de datos
+      allowNull: true,
     },
-    updated_at: {
+    createdAt: {
       type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
+      field: 'created_at',
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      field: 'updated_at',
     },
   },
   {
-    tableName: 'Users', // Nombre exacto de la tabla
-    timestamps: false, // Desactiva automáticamente createdAt y updatedAt
+    tableName: 'Users',
+    timestamps: true,
   }
 );
 

@@ -20,6 +20,7 @@ function checkAdmin(req, res, next) {
   }
 }
 
+
 /**
  * @swagger
  * /users/register:
@@ -43,23 +44,31 @@ function checkAdmin(req, res, next) {
  *                 type: number
  *               longitude:
  *                 type: number
+ *               image_url:
+ *                 type: string
+ *                 description: URL de la imagen del usuario
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente
  */
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, latitude, longitude } = req.body;
+    const { name, email, password, latitude, longitude, image_url } = req.body;
 
-    // Verificar si el usuario ya existe
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) return res.status(400).send('Email already registered');
 
-    // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear el usuario
-    const user = await User.create({ name, email, password: hashedPassword, latitude, longitude });
+    const user = await User.create({ 
+      name, 
+      email, 
+      password: hashedPassword, 
+      latitude, 
+      longitude,
+      imageUrl: image_url 
+    });
+    
     res.status(201).json(user);
   } catch (err) {
     res.status(500).send(err.message);
@@ -191,47 +200,67 @@ router.get('/', authenticate, checkAdmin, async (req, res) => {
 });
 
 
+
 /**
  * @swagger
- * /cleaners:
+ * /users:
  *   get:
- *     summary: Listar todos los limpiadores
- *     tags: [Cleaners]
+ *     summary: Obtener la lista completa de usuarios (Solo para administradores)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: page
  *         in: query
- *         description: Número de página (por defecto 1)
+ *         description: Número de página (por defecto es 1)
+ *         required: false
  *         schema:
  *           type: integer
  *       - name: size
  *         in: query
- *         description: Cantidad de limpiadores por página (por defecto 10)
+ *         description: Cantidad de usuarios por página (por defecto es 10)
+ *         required: false
  *         schema:
  *           type: integer
  *     responses:
  *       200:
- *         description: Lista paginada de limpiadores
+ *         description: Lista paginada de usuarios
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalUsers:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
  */
-router.get('/', async (req, res) => {
+router.get('/', authenticate, checkAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const size = parseInt(req.query.size) || 10;
-    const { count, rows } = await Cleaner.findAndCountAll({
-      attributes: { exclude: ['password'] },
+
+    const { count, rows } = await User.findAndCountAll({
       offset: (page - 1) * size,
       limit: size,
+      attributes: { exclude: ['password'] }
     });
 
     res.json({
-      totalCleaners: count,
+      totalUsers: count,
       totalPages: Math.ceil(count / size),
       currentPage: page,
-      cleaners: rows,
+      users: rows,
     });
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
-
 
 module.exports = router
