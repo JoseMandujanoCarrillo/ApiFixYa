@@ -4,7 +4,7 @@ const cleanerRoutes = require('./routes/cleanerRoutes');
 const proposalRoutes = require('./routes/proposalRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const userRoutes = require('./routes/userRoutes');
-const creditCardRoutes = require('./routes/CreditCard');
+const creditCardRoutes = require('./routes/CreditCardRoutes');
 
 const app = express();
 
