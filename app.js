@@ -4,7 +4,7 @@ const cleanerRoutes = require('./routes/cleanerRoutes');
 const proposalRoutes = require('./routes/proposalRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const userRoutes = require('./routes/userRoutes');
-
+const creditCardRoutes = require('./routes/CreditCard');
 
 const app = express();
 
@@ -19,7 +19,7 @@ app.use('/cleaners', cleanerRoutes);
 app.use('/proposals', proposalRoutes);
 app.use('/services', serviceRoutes);
 app.use('/users', userRoutes);
-app.use('/api/creditcards', creditCardRoutes); // Aquí se define la ruta base
+app.use('/creditcards', creditCardRoutes); // Aquí se define la ruta base
 // Iniciar el servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
