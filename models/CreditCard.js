@@ -50,7 +50,7 @@ const CreditCard = sequelize.define('CreditCard', {  // Aquí cambia el nombre d
     defaultValue: 'USD',
   },
 }, {
-  tableName: 'CreditCards',  // Asegúrate de que la tabla se llame 'CreditCards' en la base de datos
+  tableName: 'creditcards',  // Asegúrate de que la tabla se llame 'CreditCards' en la base de datos
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
