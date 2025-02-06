@@ -287,6 +287,9 @@ router.delete('/:id', async (req, res) => {
  *         status:
  *           type: string
  *           description: Estado de la propuesta (pending, accepted, rejected)
+ *         direccion:
+ *           type: string
+ *           description: Dirección de la propuesta
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -298,12 +301,14 @@ router.delete('/:id', async (req, res) => {
  *       required:
  *         - serviceId
  *         - userId
+ *         - direccion
  *       example:
  *         id: 1
  *         serviceId: 1
  *         userId: 1
  *         date: "2025-01-13T15:24:39.572Z"
  *         status: "pending"
+ *         direccion: "Av. Reforma 123, Ciudad de México"
  *         createdAt: "2025-01-13T15:24:39.572Z"
  *         updatedAt: "2025-01-13T15:24:39.572Z"
  */

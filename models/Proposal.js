@@ -10,12 +10,12 @@ const Proposal = sequelize.define('Proposal', {
   serviceId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'service_id', // Mapea a la columna 'service_id' en la base de datos
+    field: 'service_id',
   },
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    field: 'user_id', // Mapea a la columna 'user_id' en la base de datos
+    field: 'user_id',
   },
   date: {
     type: DataTypes.DATE,
@@ -24,19 +24,23 @@ const Proposal = sequelize.define('Proposal', {
     type: DataTypes.STRING,
     defaultValue: 'pending',
   },
+  direccion: {
+    type: DataTypes.STRING,
+    allowNull: true, // Cambia a true si no es obligatorio
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
-    field: 'created_at', // Mapea a la columna 'created_at' en la base de datos
+    field: 'created_at',
   },
   updatedAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
-    field: 'updated_at', // Mapea a la columna 'updated_at' en la base de datos
+    field: 'updated_at',
   },
 }, {
-  tableName: 'proposals', // Nombre de la tabla en la base de datos
-  timestamps: false, // Desactiva los timestamps automáticos de Sequelize
+  tableName: 'proposals',
+  timestamps: false,
 });
 
 module.exports = Proposal;
