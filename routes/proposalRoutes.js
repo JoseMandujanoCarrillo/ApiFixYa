@@ -1,5 +1,5 @@
 const express = require('express');
-const Proposal = require('../models/Proposal'); // Importar el modelo corregido
+const Proposal = require('../models/Proposal'); // Importar el modelo actualizado
 const { authenticate } = require('../middleware/auth'); // Importar el middleware de autenticación
 const router = express.Router();
 
@@ -58,7 +58,7 @@ router.get('/my', authenticate, async (req, res) => {
     const { count, rows } = await Proposal.findAndCountAll({
       where: { userId: req.user.id },
       limit,
-      offset
+      offset,
     });
 
     res.json({
@@ -290,6 +290,18 @@ router.delete('/:id', async (req, res) => {
  *         direccion:
  *           type: string
  *           description: Dirección de la propuesta
+ *         cardId:
+ *           type: integer
+ *           description: ID de la tarjeta (foreign key de creditcards)
+ *         Descripcion:
+ *           type: string
+ *           description: Descripción de la propuesta
+ *         UsuarioEnCasa:
+ *           type: boolean
+ *           description: Indica si el usuario estará en casa
+ *         tipodeservicio:
+ *           type: string
+ *           description: Tipo de servicio
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -309,6 +321,10 @@ router.delete('/:id', async (req, res) => {
  *         date: "2025-01-13T15:24:39.572Z"
  *         status: "pending"
  *         direccion: "Av. Reforma 123, Ciudad de México"
+ *         cardId: 1
+ *         Descripcion: "Servicio de limpieza profunda"
+ *         UsuarioEnCasa: true
+ *         tipodeservicio: "Limpieza Residencial"
  *         createdAt: "2025-01-13T15:24:39.572Z"
  *         updatedAt: "2025-01-13T15:24:39.572Z"
  */
