@@ -1,5 +1,5 @@
 const express = require('express');
-const { CreditCard } = require('../models');
+const CreditCard = require('../models/CreditCard');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
