@@ -263,4 +263,104 @@ router.get('/', authenticate, checkAdmin, async (req, res) => {
   }
 });
 
-module.exports = router
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     summary: Actualizar información de usuario (Usuario propio o administrador)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               latitude:
+ *                 type: number
+ *               longitude:
+ *                 type: number
+ *               image_url:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Usuario actualizado exitosamente
+ */
+router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).send('User not found');
+
+    const { name, email, password, latitude, longitude, image_url } = req.body;
+
+    // Validar email único
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) return res.status(400).send('Email already in use');
+    }
+
+    // Actualizar campos
+    if (password) user.password = await bcrypt.hash(password, 10);
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (latitude !== undefined) user.latitude = latitude;
+    if (longitude !== undefined) user.longitude = longitude;
+    if (image_url) user.imageUrl = image_url;
+
+    await user.save();
+    
+    // Excluir password en la respuesta
+    const userData = user.get({ plain: true });
+    delete userData.password;
+    
+    res.json(userData);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   delete:
+ *     summary: Eliminar usuario (Solo administrador)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       204:
+ *         description: Usuario eliminado exitosamente
+ */
+router.delete('/:id', authenticate, checkAdmin, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).send('User not found');
+    
+    await user.destroy();
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+module.exports = router;
