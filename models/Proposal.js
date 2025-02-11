@@ -44,7 +44,7 @@ const Proposal = sequelize.define('Proposal', {
   UsuarioEnCasa: {
     type: DataTypes.BOOLEAN,
     allowNull: true,
-    field: 'usuario_en_casa',
+    field: 'usuarioencasa',
   },
   // Nueva columna: tipodeservicio
   tipodeservicio: {
