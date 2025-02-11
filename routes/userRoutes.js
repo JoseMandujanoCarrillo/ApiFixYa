@@ -1,17 +1,23 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Modelo User correctamente configurado
+const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
-const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
+const SECRET_KEY = 'your_secret_key';
+const ADMIN_EMAIL = 'UserAdmin@gmail.com';
 
-const ADMIN_EMAIL = 'UserAdmin@gmail.com'; // Email del administrador
+// ========== Middlewares ==========
+function checkUserOrAdmin(req, res, next) {
+  const userId = parseInt(req.params.id);
+  if (!isNaN(userId) && (req.user.id === userId || req.user.email === ADMIN_EMAIL)) {
+    next();
+  } else {
+    res.status(403).send('Access denied');
+  }
+}
 
-/**
- * Middleware para verificar si el usuario es administrador
- */
 function checkAdmin(req, res, next) {
   if (req.user.email === ADMIN_EMAIL) {
     next();
@@ -20,6 +26,7 @@ function checkAdmin(req, res, next) {
   }
 }
 
+// ========== Endpoints ==========
 
 /**
  * @swagger
@@ -46,7 +53,6 @@ function checkAdmin(req, res, next) {
  *                 type: number
  *               image_url:
  *                 type: string
- *                 description: URL de la imagen del usuario
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente
@@ -94,21 +100,17 @@ router.post('/register', async (req, res) => {
  *                 type: string
  *     responses:
  *       200:
- *         description: Inicio de sesión exitoso, devuelve un token
+ *         description: Inicio de sesión exitoso
  */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Verificar si el usuario existe
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(404).send('User not found');
 
-    // Comparar contraseñas
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).send('Invalid password');
 
-    // Generar token
     const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
     res.json({ token });
   } catch (err) {
@@ -120,13 +122,13 @@ router.post('/login', async (req, res) => {
  * @swagger
  * /users/me:
  *   get:
- *     summary: Obtener la información del usuario autenticado
+ *     summary: Obtener información del usuario autenticado
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Información del usuario autenticado
+ *         description: Información del usuario
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
@@ -142,104 +144,20 @@ router.get('/me', authenticate, async (req, res) => {
  * @swagger
  * /users:
  *   get:
- *     summary: Obtener la lista completa de usuarios (Solo para administradores)
+ *     summary: Obtener todos los usuarios (Admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - name: page
  *         in: query
- *         description: Número de página (por defecto es 1)
- *         required: false
- *         schema:
- *           type: integer
+ *         schema: { type: integer }
  *       - name: size
  *         in: query
- *         description: Cantidad de usuarios por página (por defecto es 10)
- *         required: false
- *         schema:
- *           type: integer
+ *         schema: { type: integer }
  *     responses:
  *       200:
- *         description: Lista paginada de usuarios
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalUsers:
- *                   type: integer
- *                 totalPages:
- *                   type: integer
- *                 currentPage:
- *                   type: integer
- *                 users:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/User'
- */
-router.get('/', authenticate, checkAdmin, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1; // Página actual (por defecto 1)
-    const size = parseInt(req.query.size) || 10; // Tamaño de la página (por defecto 10)
-
-    const { count, rows } = await User.findAndCountAll({
-      offset: (page - 1) * size,
-      limit: size,
-    });
-
-    res.json({
-      totalUsers: count,
-      totalPages: Math.ceil(count / size),
-      currentPage: page,
-      users: rows,
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-
-
-/**
- * @swagger
- * /users:
- *   get:
- *     summary: Obtener la lista completa de usuarios (Solo para administradores)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: page
- *         in: query
- *         description: Número de página (por defecto es 1)
- *         required: false
- *         schema:
- *           type: integer
- *       - name: size
- *         in: query
- *         description: Cantidad de usuarios por página (por defecto es 10)
- *         required: false
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Lista paginada de usuarios
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalUsers:
- *                   type: integer
- *                 totalPages:
- *                   type: integer
- *                 currentPage:
- *                   type: integer
- *                 users:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/User'
+ *         description: Lista de usuarios paginada
  */
 router.get('/', authenticate, checkAdmin, async (req, res) => {
   try {
@@ -267,7 +185,7 @@ router.get('/', authenticate, checkAdmin, async (req, res) => {
  * @swagger
  * /users/{id}:
  *   put:
- *     summary: Actualizar información de usuario (Usuario propio o administrador)
+ *     summary: Actualizar usuario
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -275,8 +193,7 @@ router.get('/', authenticate, checkAdmin, async (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
- *         schema:
- *           type: integer
+ *         schema: { type: integer }
  *     requestBody:
  *       required: true
  *       content:
@@ -284,21 +201,15 @@ router.get('/', authenticate, checkAdmin, async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               latitude:
- *                 type: number
- *               longitude:
- *                 type: number
- *               image_url:
- *                 type: string
+ *               name: { type: string }
+ *               email: { type: string }
+ *               password: { type: string }
+ *               latitude: { type: number }
+ *               longitude: { type: number }
+ *               image_url: { type: string }
  *     responses:
  *       200:
- *         description: Usuario actualizado exitosamente
+ *         description: Usuario actualizado
  */
 router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
   try {
@@ -307,13 +218,11 @@ router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
 
     const { name, email, password, latitude, longitude, image_url } = req.body;
 
-    // Validar email único
     if (email && email !== user.email) {
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) return res.status(400).send('Email already in use');
     }
 
-    // Actualizar campos
     if (password) user.password = await bcrypt.hash(password, 10);
     if (name) user.name = name;
     if (email) user.email = email;
@@ -323,7 +232,6 @@ router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
 
     await user.save();
     
-    // Excluir password en la respuesta
     const userData = user.get({ plain: true });
     delete userData.password;
     
@@ -337,7 +245,7 @@ router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
  * @swagger
  * /users/{id}:
  *   delete:
- *     summary: Eliminar usuario (Solo administrador)
+ *     summary: Eliminar usuario (Admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -345,11 +253,10 @@ router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
- *         schema:
- *           type: integer
+ *         schema: { type: integer }
  *     responses:
  *       204:
- *         description: Usuario eliminado exitosamente
+ *         description: Usuario eliminado
  */
 router.delete('/:id', authenticate, checkAdmin, async (req, res) => {
   try {
