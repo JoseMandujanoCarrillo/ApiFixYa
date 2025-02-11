@@ -38,6 +38,7 @@ const Proposal = sequelize.define('Proposal', {
   Descripcion: {
     type: DataTypes.TEXT,
     allowNull: true,
+    field: 'descripcion',
   },
   // Nueva columna: UsuarioEnCasa (booleano)
   UsuarioEnCasa: {
