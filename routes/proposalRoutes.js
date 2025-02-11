@@ -1,6 +1,6 @@
 const express = require('express');
-const Proposal = require('../models/Proposal'); // Importar el modelo actualizado
-const { authenticate } = require('../middleware/auth'); // Importar el middleware de autenticación
+const Proposal = require('../models/Proposal');
+const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
 /**
@@ -54,7 +54,6 @@ router.get('/my', authenticate, async (req, res) => {
   const offset = (parseInt(page) - 1) * limit;
 
   try {
-    // Filtrar las propuestas por el id del usuario autenticado (req.user.id)
     const { count, rows } = await Proposal.findAndCountAll({
       where: { userId: req.user.id },
       limit,
@@ -299,6 +298,9 @@ router.delete('/:id', async (req, res) => {
  *         UsuarioEnCasa:
  *           type: boolean
  *           description: Indica si el usuario estará en casa
+ *         servicioConstante:
+ *           type: boolean
+ *           description: Indica si el servicio es constante/recurrente
  *         tipodeservicio:
  *           type: string
  *           description: Tipo de servicio
@@ -324,6 +326,7 @@ router.delete('/:id', async (req, res) => {
  *         cardId: 1
  *         Descripcion: "Servicio de limpieza profunda"
  *         UsuarioEnCasa: true
+ *         servicioConstante: true
  *         tipodeservicio: "Limpieza Residencial"
  *         createdAt: "2025-01-13T15:24:39.572Z"
  *         updatedAt: "2025-01-13T15:24:39.572Z"

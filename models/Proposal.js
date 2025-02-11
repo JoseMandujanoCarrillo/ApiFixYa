@@ -26,30 +26,33 @@ const Proposal = sequelize.define('Proposal', {
   },
   direccion: {
     type: DataTypes.STRING,
-    allowNull: true, // Cambia a false si es obligatorio
+    allowNull: true,
   },
-  // Nueva columna: llave foránea a creditcards
   cardId: {
     type: DataTypes.INTEGER,
     allowNull: true,
     field: 'card_id',
   },
-  // Nueva columna: Descripcion
   Descripcion: {
     type: DataTypes.TEXT,
     allowNull: true,
     field: 'descripcion',
   },
-  // Nueva columna: UsuarioEnCasa (booleano)
   UsuarioEnCasa: {
     type: DataTypes.BOOLEAN,
     allowNull: true,
     field: 'usuarioencasa',
   },
-  // Nueva columna: tipodeservicio
   tipodeservicio: {
     type: DataTypes.TEXT,
     allowNull: true,
+  },
+  // Nuevo campo servicio_constante
+  servicioConstante: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false, // Puedes establecer un valor por defecto si lo necesitas
+    field: 'servicio_constante'
   },
   createdAt: {
     type: DataTypes.DATE,
