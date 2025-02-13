@@ -103,6 +103,44 @@ router.post('/login', async (req, res) => {
 
 /**
  * @swagger
+ * /cleaners/exists:
+ *   get:
+ *     summary: Verificar si un limpiador existe según el email proporcionado
+ *     tags: [Cleaners]
+ *     parameters:
+ *       - in: query
+ *         name: email
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Email del limpiador a verificar
+ *     responses:
+ *       200:
+ *         description: Devuelve un objeto indicando si el limpiador existe o no.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exists:
+ *                   type: boolean
+ */
+router.get('/exists', async (req, res) => {
+  try {
+    const email = req.query.email;
+    if (!email) {
+      return res.status(400).json({ error: 'El parámetro email es requerido.' });
+    }
+
+    const cleaner = await Cleaner.findOne({ where: { email } });
+    return res.json({ exists: !!cleaner });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
  * /cleaners/me:
  *   get:
  *     summary: Obtener la información del limpiador autenticado
