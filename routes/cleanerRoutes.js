@@ -93,7 +93,7 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, cleaner.password);
     if (!validPassword) return res.status(400).send('Invalid password');
 
-    // Generar token
+    // Generar token con la información necesaria
     const token = jwt.sign({ cleaner_id: cleaner.cleaner_id, email: cleaner.email }, SECRET_KEY, { expiresIn: '1h' });
     res.json({ token });
   } catch (err) {
@@ -101,5 +101,36 @@ router.post('/login', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /cleaners/me:
+ *   get:
+ *     summary: Obtener la información del limpiador autenticado
+ *     tags: [Cleaners]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Información del limpiador
+ */
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    // Se asume que el middleware 'authenticate' añade la propiedad 'user' al request
+    const cleanerId = req.user.cleaner_id; // Extraemos el cleaner_id del token
+    const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
+    if (!cleaner) return res.status(404).send('Cleaner not found');
+
+    // Retornamos la información necesaria del cleaner
+    res.json({
+      id: cleaner.cleaner_id,
+      name: cleaner.name,
+      email: cleaner.email,
+      latitude: cleaner.latitude,
+      longitude: cleaner.longitude
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
 
 module.exports = router;
