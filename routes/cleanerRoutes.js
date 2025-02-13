@@ -227,4 +227,59 @@ router.get('/service/:serviceId', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /cleaners/me/services:
+ *   get:
+ *     summary: Obtener los servicios del limpiador autenticado
+ *     tags: [Cleaners]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de servicios del limpiador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   cleanerId:
+ *                     type: integer
+ *                   description:
+ *                     type: string
+ *                   price:
+ *                     type: number
+ *                   name:
+ *                     type: string
+ *                   imagebyte:
+ *                     type: string
+ *                   imageUrl:
+ *                     type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *                   updatedAt:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/me/services', authenticate, async (req, res) => {
+  try {
+    // Obtenemos el cleaner_id del token
+    const cleanerId = req.user.cleaner_id;
+    // Buscamos todos los servicios asociados al limpiador autenticado
+    const services = await Service.findAll({ where: { cleanerId } });
+    res.json(services);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
