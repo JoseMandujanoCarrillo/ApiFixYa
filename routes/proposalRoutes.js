@@ -127,6 +127,44 @@ router.get('/', async (req, res) => {
 
 /**
  * @swagger
+ * /proposals/service/{serviceId}:
+ *   get:
+ *     summary: Obtener todas las propuestas para un servicio dado
+ *     tags: [Proposals]
+ *     parameters:
+ *       - in: path
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del servicio
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas para el servicio especificado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Proposal'
+ *       404:
+ *         description: No se encontraron propuestas para el servicio
+ */
+router.get('/service/:serviceId', async (req, res) => {
+  try {
+    const serviceId = req.params.serviceId;
+    const proposals = await Proposal.findAll({ where: { serviceId: serviceId } });
+    if (!proposals || proposals.length === 0) {
+      return res.status(404).send('No proposals found for this service');
+    }
+    res.json(proposals);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
  * /proposals/{id}:
  *   get:
  *     summary: Obtener una propuesta por ID

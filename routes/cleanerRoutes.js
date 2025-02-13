@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Cleaner = require('../models/Cleaner');
+const Service = require('../models/Service'); // Importamos el modelo Service para relacionarlo
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -159,6 +160,61 @@ router.get('/me', authenticate, async (req, res) => {
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
     // Retornamos la información necesaria del cleaner
+    res.json({
+      id: cleaner.cleaner_id,
+      name: cleaner.name,
+      email: cleaner.email,
+      latitude: cleaner.latitude,
+      longitude: cleaner.longitude
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /cleaners/service/{serviceId}:
+ *   get:
+ *     summary: Obtener el limpiador perteneciente al servicio especificado
+ *     tags: [Cleaners]
+ *     parameters:
+ *       - in: path
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del servicio
+ *     responses:
+ *       200:
+ *         description: Información del limpiador asociado al servicio
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 latitude:
+ *                   type: number
+ *                 longitude:
+ *                   type: number
+ *       404:
+ *         description: Servicio o limpiador no encontrado
+ */
+router.get('/service/:serviceId', async (req, res) => {
+  try {
+    const serviceId = req.params.serviceId;
+    const service = await Service.findOne({ where: { id: serviceId } });
+    if (!service) return res.status(404).send('Service not found');
+
+    const cleaner = await Cleaner.findOne({ where: { cleaner_id: service.cleanerId } });
+    if (!cleaner) return res.status(404).send('Cleaner not found for this service');
+
     res.json({
       id: cleaner.cleaner_id,
       name: cleaner.name,
