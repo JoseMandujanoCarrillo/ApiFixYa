@@ -1,5 +1,7 @@
 const express = require('express');
+const { Op } = require('sequelize');
 const Proposal = require('../models/Proposal');
+const Service = require('../models/Service'); // Se importa el modelo Service para relacionar los servicios con los cleaners
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -14,7 +16,7 @@ const router = express.Router();
  * @swagger
  * /proposals/my:
  *   get:
- *     summary: Obtener las propuestas del usuario autenticado con paginación
+ *     summary: Obtener las propuestas del usuario autenticado (cliente) con paginación
  *     tags: [Proposals]
  *     security:
  *       - bearerAuth: []
@@ -31,22 +33,7 @@ const router = express.Router();
  *         description: Cantidad de elementos por página (por defecto 10)
  *     responses:
  *       200:
- *         description: Lista de propuestas del usuario autenticado con paginación
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalItems:
- *                   type: integer
- *                 totalPages:
- *                   type: integer
- *                 currentPage:
- *                   type: integer
- *                 proposals:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Proposal'
+ *         description: Lista de propuestas realizadas por el usuario autenticado
  */
 router.get('/my', authenticate, async (req, res) => {
   const { page = 1, size = 10 } = req.query;
@@ -54,6 +41,7 @@ router.get('/my', authenticate, async (req, res) => {
   const offset = (parseInt(page) - 1) * limit;
 
   try {
+    // Se asume que para clientes se almacena el id en req.user.id
     const { count, rows } = await Proposal.findAndCountAll({
       where: { userId: req.user.id },
       limit,
@@ -82,7 +70,7 @@ router.get('/my', authenticate, async (req, res) => {
  *         name: page
  *         schema:
  *           type: integer
- *         description: Número de la página (por defecto 1)
+ *         description: Número de página (por defecto 1)
  *       - in: query
  *         name: size
  *         schema:
@@ -90,22 +78,7 @@ router.get('/my', authenticate, async (req, res) => {
  *         description: Cantidad de elementos por página (por defecto 10)
  *     responses:
  *       200:
- *         description: Lista de propuestas con paginación
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 totalItems:
- *                   type: integer
- *                 totalPages:
- *                   type: integer
- *                 currentPage:
- *                   type: integer
- *                 proposals:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Proposal'
+ *         description: Lista de todas las propuestas
  */
 router.get('/', async (req, res) => {
   const { page = 1, size = 10 } = req.query;
@@ -141,6 +114,33 @@ router.get('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Lista de propuestas para el servicio especificado
+ *       404:
+ *         description: No se encontraron propuestas para el servicio
+ */
+router.get('/service/:serviceId', async (req, res) => {
+  try {
+    const serviceId = req.params.serviceId;
+    const proposals = await Proposal.findAll({ where: { serviceId } });
+    if (!proposals || proposals.length === 0) {
+      return res.status(404).send('No proposals found for this service');
+    }
+    res.json(proposals);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /proposals/for-cleaner:
+ *   get:
+ *     summary: Obtener todas las propuestas conectadas a los servicios del limpiador autenticado
+ *     tags: [Proposals]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas para los servicios del limpiador
  *         content:
  *           application/json:
  *             schema:
@@ -148,15 +148,26 @@ router.get('/', async (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/Proposal'
  *       404:
- *         description: No se encontraron propuestas para el servicio
+ *         description: No se encontraron servicios o propuestas para el limpiador
  */
-router.get('/service/:serviceId', async (req, res) => {
+router.get('/for-cleaner', authenticate, async (req, res) => {
   try {
-    const serviceId = req.params.serviceId;
-    const proposals = await Proposal.findAll({ where: { serviceId: serviceId } });
-    if (!proposals || proposals.length === 0) {
-      return res.status(404).send('No proposals found for this service');
+    // Se asume que el token para limpiadores contiene la propiedad cleaner_id
+    const cleanerId = req.user.cleaner_id;
+    
+    // Buscar los servicios que pertenecen al limpiador autenticado
+    const services = await Service.findAll({ where: { cleanerId } });
+    const serviceIds = services.map(service => service.id);
+
+    if (serviceIds.length === 0) {
+      return res.status(404).send("No services found for this cleaner");
     }
+
+    // Buscar todas las propuestas de esos servicios
+    const proposals = await Proposal.findAll({
+      where: { serviceId: { [Op.in]: serviceIds } }
+    });
+
     res.json(proposals);
   } catch (err) {
     res.status(500).send(err.message);
@@ -179,10 +190,6 @@ router.get('/service/:serviceId', async (req, res) => {
  *     responses:
  *       200:
  *         description: Propuesta encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Proposal'
  *       404:
  *         description: Propuesta no encontrada
  */
@@ -211,10 +218,6 @@ router.get('/:id', async (req, res) => {
  *     responses:
  *       201:
  *         description: Propuesta creada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Proposal'
  *       500:
  *         description: Error del servidor
  */
@@ -249,10 +252,6 @@ router.post('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Propuesta actualizada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Proposal'
  *       404:
  *         description: Propuesta no encontrada
  *       500:
@@ -354,20 +353,5 @@ router.delete('/:id', async (req, res) => {
  *         - serviceId
  *         - userId
  *         - direccion
- *       example:
- *         id: 1
- *         serviceId: 1
- *         userId: 1
- *         date: "2025-01-13T15:24:39.572Z"
- *         status: "pending"
- *         direccion: "Av. Reforma 123, Ciudad de México"
- *         cardId: 1
- *         Descripcion: "Servicio de limpieza profunda"
- *         UsuarioEnCasa: true
- *         servicioConstante: true
- *         tipodeservicio: "Limpieza Residencial"
- *         createdAt: "2025-01-13T15:24:39.572Z"
- *         updatedAt: "2025-01-13T15:24:39.572Z"
  */
-
 module.exports = router;
