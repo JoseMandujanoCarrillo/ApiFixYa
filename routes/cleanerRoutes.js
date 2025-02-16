@@ -95,7 +95,7 @@ router.post('/login', async (req, res) => {
     if (!validPassword) return res.status(400).send('Invalid password');
 
     // Generar token con la información necesaria
-    const token = jwt.sign({ cleaner_id: cleaner.cleaner_id, email: cleaner.email }, SECRET_KEY, { expiresIn: '1h' });
+    const token = jwt.sign({ cleaner_id: cleaner.cleaner_id, email: cleaner.email }, SECRET_KEY, { expiresIn: '3d' });
     res.json({ token });
   } catch (err) {
     res.status(500).send(err.message);
