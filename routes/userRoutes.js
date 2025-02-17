@@ -1,4 +1,4 @@
-// routes/users.js
+// routes/userRoutes.js
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -204,12 +204,18 @@ router.get('/', authenticate, checkAdmin, async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               name: { type: string }
- *               email: { type: string }
- *               password: { type: string }
- *               latitude: { type: number }
- *               longitude: { type: number }
- *               image_url: { type: string }
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               latitude:
+ *                 type: number
+ *               longitude:
+ *                 type: number
+ *               image_url:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Usuario actualizado
@@ -281,8 +287,7 @@ router.delete('/:id', authenticate, checkAdmin, async (req, res) => {
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
- *     description: Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en "pending"). Cada notificación tiene el formato: 
- *                  "propuesta <tipodeservicio> ha sido '<status>'".
+ *     description: "Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en 'pending'). Cada notificación tiene el formato: propuesta <tipodeservicio> ha sido '<status>'."
  *     responses:
  *       200:
  *         description: Lista de notificaciones
