@@ -2,9 +2,9 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Proposal = require('../models/Proposal'); // Asegúrate de tener definido este modelo y el campo "notificationDismissed"
 const { Op } = require('sequelize');
+const User = require('../models/User');
+const Proposal = require('../models/Proposal'); // Se asume que este modelo está definido
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -287,7 +287,7 @@ router.delete('/:id', authenticate, checkAdmin, async (req, res) => {
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
- *     description: "Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en 'pending') y que no hayan sido descartadas. Cada notificación tiene el formato: propuesta <tipodeservicio> ha sido '<status>'."
+ *     description: "Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en 'pending'). Cada notificación tiene el formato: propuesta <tipodeservicio> ha sido '<status>'."
  *     parameters:
  *       - name: page
  *         in: query
@@ -306,17 +306,18 @@ router.get('/notifications', authenticate, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const size = parseInt(req.query.size) || 10;
 
+    // Se buscan las propuestas del usuario cuyo estado ya no sea "pending"
     const { count, rows } = await Proposal.findAndCountAll({
       where: {
         userId: req.user.id,
-        status: { [Op.ne]: 'pending' },
-        notificationDismissed: { [Op.or]: [false, null] }
+        status: { [Op.ne]: 'pending' }
       },
       offset: (page - 1) * size,
       limit: size,
       order: [['updatedAt', 'DESC']]
     });
 
+    // Se genera la notificación a partir del tipodeservicio y el estado actual
     const notifications = rows.map(proposal => ({
       message: `propuesta ${proposal.tipodeservicio} ha sido '${proposal.status}'`,
       proposalId: proposal.id,
@@ -340,10 +341,11 @@ router.get('/notifications', authenticate, async (req, res) => {
  * @swagger
  * /users/notifications/{proposalId}:
  *   delete:
- *     summary: Borrar (descartar) una notificación
+ *     summary: 'Descartar (borrar) una notificación'
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
+ *     description: "Como las notificaciones se generan a partir de propuestas, al descartar una notificación el servidor no elimina la propuesta. Se espera que el cliente retire la notificación de su interfaz."
  *     parameters:
  *       - in: path
  *         name: proposalId
@@ -360,25 +362,21 @@ router.delete('/notifications/:proposalId', authenticate, async (req, res) => {
   try {
     const proposalId = parseInt(req.params.proposalId);
     if (isNaN(proposalId)) return res.status(400).send('Invalid proposal ID');
-    
-    // Buscamos la propuesta que genera la notificación, que ya no esté en "pending", y que pertenezca al usuario.
-    // Además, comprobamos que la notificación aún no haya sido descartada.
+
+    // Buscamos la propuesta del usuario cuyo estado ya no es "pending"
     const proposal = await Proposal.findOne({
       where: {
         id: proposalId,
         userId: req.user.id,
-        status: { [Op.ne]: 'pending' },
-        notificationDismissed: { [Op.or]: [false, null] }
+        status: { [Op.ne]: 'pending' }
       }
     });
 
     if (!proposal) return res.status(404).send('Notification not found');
 
-    // Marcamos la notificación como descartada.
-    proposal.notificationDismissed = true;
-    await proposal.save();
-
-    res.send('Notification dismissed');
+    // Como no contamos con un campo para descartar la notificación, devolvemos un mensaje
+    // para que el cliente retire la notificación de su lista.
+    res.send('Notification dismissed (client should remove it)');
   } catch (err) {
     res.status(500).send(err.message);
   }
