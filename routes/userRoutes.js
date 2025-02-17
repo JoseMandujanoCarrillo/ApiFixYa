@@ -1,7 +1,10 @@
+// routes/users.js
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Proposal = require('../models/Proposal'); // Asegúrate de tener definido este modelo
+const { Op } = require('sequelize');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -265,6 +268,45 @@ router.delete('/:id', authenticate, checkAdmin, async (req, res) => {
     
     await user.destroy();
     res.status(204).send();
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /users/notifications:
+ *   get:
+ *     summary: Obtener notificaciones personales
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en "pending"). Cada notificación tiene el formato: 
+ *                  "propuesta <tipodeservicio> ha sido '<status>'".
+ *     responses:
+ *       200:
+ *         description: Lista de notificaciones
+ */
+router.get('/notifications', authenticate, async (req, res) => {
+  try {
+    // Se buscan las propuestas del usuario cuyo estado ya no sea "pending"
+    const proposals = await Proposal.findAll({
+      where: {
+        userId: req.user.id,
+        status: { [Op.ne]: 'pending' }
+      }
+    });
+
+    // Se genera la notificación a partir del tipodeservicio y el estado actual
+    const notifications = proposals.map(proposal => ({
+      message: `propuesta ${proposal.tipodeservicio} ha sido '${proposal.status}'`,
+      proposalId: proposal.id,
+      tipodeservicio: proposal.tipodeservicio,
+      status: proposal.status,
+      updatedAt: proposal.updatedAt
+    }));
+
+    res.json(notifications);
   } catch (err) {
     res.status(500).send(err.message);
   }
