@@ -3,7 +3,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Proposal = require('../models/Proposal'); // Asegúrate de tener definido este modelo
+const Proposal = require('../models/Proposal'); // Asegúrate de tener definido este modelo y el campo "notificationDismissed"
 const { Op } = require('sequelize');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
@@ -283,27 +283,41 @@ router.delete('/:id', authenticate, checkAdmin, async (req, res) => {
  * @swagger
  * /users/notifications:
  *   get:
- *     summary: Obtener notificaciones personales
+ *     summary: Obtener notificaciones personales con paginación
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
- *     description: "Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en 'pending'). Cada notificación tiene el formato: propuesta <tipodeservicio> ha sido '<status>'."
+ *     description: "Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en 'pending') y que no hayan sido descartadas. Cada notificación tiene el formato: propuesta <tipodeservicio> ha sido '<status>'."
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *         description: Número de página (por defecto 1)
+ *       - name: size
+ *         in: query
+ *         schema: { type: integer }
+ *         description: Tamaño de página (por defecto 10)
  *     responses:
  *       200:
- *         description: Lista de notificaciones
+ *         description: Lista de notificaciones paginadas
  */
 router.get('/notifications', authenticate, async (req, res) => {
   try {
-    // Se buscan las propuestas del usuario cuyo estado ya no sea "pending"
-    const proposals = await Proposal.findAll({
+    const page = parseInt(req.query.page) || 1;
+    const size = parseInt(req.query.size) || 10;
+
+    const { count, rows } = await Proposal.findAndCountAll({
       where: {
         userId: req.user.id,
-        status: { [Op.ne]: 'pending' }
-      }
+        status: { [Op.ne]: 'pending' },
+        notificationDismissed: { [Op.or]: [false, null] }
+      },
+      offset: (page - 1) * size,
+      limit: size,
+      order: [['updatedAt', 'DESC']]
     });
 
-    // Se genera la notificación a partir del tipodeservicio y el estado actual
-    const notifications = proposals.map(proposal => ({
+    const notifications = rows.map(proposal => ({
       message: `propuesta ${proposal.tipodeservicio} ha sido '${proposal.status}'`,
       proposalId: proposal.id,
       tipodeservicio: proposal.tipodeservicio,
@@ -311,7 +325,60 @@ router.get('/notifications', authenticate, async (req, res) => {
       updatedAt: proposal.updatedAt
     }));
 
-    res.json(notifications);
+    res.json({
+      totalNotifications: count,
+      totalPages: Math.ceil(count / size),
+      currentPage: page,
+      notifications,
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /users/notifications/{proposalId}:
+ *   delete:
+ *     summary: Borrar (descartar) una notificación
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: proposalId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Notificación descartada exitosamente
+ *       404:
+ *         description: Notificación no encontrada
+ */
+router.delete('/notifications/:proposalId', authenticate, async (req, res) => {
+  try {
+    const proposalId = parseInt(req.params.proposalId);
+    if (isNaN(proposalId)) return res.status(400).send('Invalid proposal ID');
+    
+    // Buscamos la propuesta que genera la notificación, que ya no esté en "pending", y que pertenezca al usuario.
+    // Además, comprobamos que la notificación aún no haya sido descartada.
+    const proposal = await Proposal.findOne({
+      where: {
+        id: proposalId,
+        userId: req.user.id,
+        status: { [Op.ne]: 'pending' },
+        notificationDismissed: { [Op.or]: [false, null] }
+      }
+    });
+
+    if (!proposal) return res.status(404).send('Notification not found');
+
+    // Marcamos la notificación como descartada.
+    proposal.notificationDismissed = true;
+    await proposal.save();
+
+    res.send('Notification dismissed');
   } catch (err) {
     res.status(500).send(err.message);
   }
