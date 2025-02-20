@@ -47,13 +47,21 @@ const Proposal = sequelize.define('Proposal', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
-  // Nuevo campo servicio_constante
   servicioConstante: {
     type: DataTypes.BOOLEAN,
     allowNull: true,
-    defaultValue: false, // Puedes establecer un valor por defecto si lo necesitas
-    field: 'servicio_constante'
+    defaultValue: false,
+    field: 'servicio_constante',
   },
+
+  // NUEVO CAMPO: cleanerStarted
+  cleanerStarted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'cleaner_started', // Nombre de columna en la DB
+  },
+
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
