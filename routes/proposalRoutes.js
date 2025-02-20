@@ -270,6 +270,57 @@ router.put('/:id', async (req, res) => {
 
 /**
  * @swagger
+ * /proposals/{id}/confirm:
+ *   put:
+ *     summary: Confirmar el inicio del servicio (cambiar de 'accepted' a 'in_progress')
+ *     tags: [Proposals]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la propuesta
+ *     responses:
+ *       200:
+ *         description: Propuesta actualizada a in_progress
+ *       400:
+ *         description: La propuesta no está en un estado válido para confirmar
+ *       403:
+ *         description: Acceso denegado
+ *       404:
+ *         description: Propuesta no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
+router.put('/:id/confirm', authenticate, async (req, res) => {
+  try {
+    const proposal = await Proposal.findByPk(req.params.id);
+    if (!proposal) return res.status(404).send('Proposal not found');
+
+    // Verificar que el usuario autenticado sea el propietario de la propuesta
+    if (proposal.userId !== req.user.id) {
+      return res.status(403).send('No tienes permiso para confirmar esta propuesta');
+    }
+
+    // Solo se permite confirmar si la propuesta está en estado "accepted"
+    if (proposal.status !== 'accepted') {
+      return res.status(400).send('La propuesta no está en un estado válido para confirmar');
+    }
+
+    // Actualiza el estado a "in_progress"
+    proposal.status = 'in_progress';
+    await proposal.save();
+    res.json(proposal);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
  * /proposals/{id}:
  *   delete:
  *     summary: Eliminar una propuesta por ID
