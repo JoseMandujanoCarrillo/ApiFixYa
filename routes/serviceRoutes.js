@@ -172,11 +172,11 @@ router.get('/:id', async (req, res) => {
  *                 type: string
  *               schedule:
  *                 type: object
- *                 description: Horario del servicio en formato JSON. Ejemplo:
- *                   example:
- *                     days: ["lunes", "martes", "miércoles", "jueves", "viernes"]
- *                     startTime: "06:00"
- *                     endTime: "19:00"
+ *                 description: Horario del servicio en formato JSON.
+ *                 example:
+ *                   days: ["lunes", "martes", "miércoles", "jueves", "viernes"]
+ *                   startTime: "06:00"
+ *                   endTime: "19:00"
  *     responses:
  *       201:
  *         description: Servicio creado
@@ -228,6 +228,10 @@ router.post('/', async (req, res) => {
  *               schedule:
  *                 type: object
  *                 description: Horario del servicio en formato JSON.
+ *                 example:
+ *                   days: ["lunes", "martes", "miércoles", "jueves", "viernes"]
+ *                   startTime: "06:00"
+ *                   endTime: "19:00"
  *     responses:
  *       200:
  *         description: Servicio actualizado
