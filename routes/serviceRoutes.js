@@ -59,6 +59,9 @@ const router = express.Router();
  *                         type: string
  *                       imageUrl:
  *                         type: string
+ *                       schedule:
+ *                         type: object
+ *                         description: Horario del servicio en formato JSON.
  *                       createdAt:
  *                         type: string
  *                         format: date-time
@@ -120,6 +123,9 @@ router.get('/', async (req, res) => {
  *                   type: string
  *                 imageUrl:
  *                   type: string
+ *                 schedule:
+ *                   type: object
+ *                   description: Horario del servicio en formato JSON.
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -164,6 +170,13 @@ router.get('/:id', async (req, res) => {
  *                 type: string
  *               imageUrl:
  *                 type: string
+ *               schedule:
+ *                 type: object
+ *                 description: Horario del servicio en formato JSON. Ejemplo:
+ *                   example:
+ *                     days: ["lunes", "martes", "miércoles", "jueves", "viernes"]
+ *                     startTime: "06:00"
+ *                     endTime: "19:00"
  *     responses:
  *       201:
  *         description: Servicio creado
@@ -172,8 +185,8 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { cleanerId, description, price, name, imagebyte, imageUrl } = req.body;
-    const service = await Service.create({ cleanerId, description, price, name, imagebyte, imageUrl });
+    const { cleanerId, description, price, name, imagebyte, imageUrl, schedule } = req.body;
+    const service = await Service.create({ cleanerId, description, price, name, imagebyte, imageUrl, schedule });
     res.status(201).json(service);
   } catch (err) {
     res.status(500).send(err.message);
@@ -212,6 +225,9 @@ router.post('/', async (req, res) => {
  *                 type: string
  *               imageUrl:
  *                 type: string
+ *               schedule:
+ *                 type: object
+ *                 description: Horario del servicio en formato JSON.
  *     responses:
  *       200:
  *         description: Servicio actualizado

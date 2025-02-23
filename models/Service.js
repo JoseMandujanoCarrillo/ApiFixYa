@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database'); // Ajusta según tu configuración
+const sequelize = require('../config/database');
 
 const Service = sequelize.define(
   'Service',
@@ -11,7 +11,7 @@ const Service = sequelize.define(
     },
     cleanerId: {
       type: DataTypes.INTEGER,
-      field: 'cleaner_id', // Nombre real en la base de datos
+      field: 'cleaner_id',
       allowNull: false,
     },
     description: {
@@ -21,31 +21,42 @@ const Service = sequelize.define(
       type: DataTypes.FLOAT,
     },
     name: {
-      type: DataTypes.STRING, // Usamos STRING en lugar de BLOB para nombres
-      allowNull: false, // Hacemos que sea obligatorio
+      type: DataTypes.STRING,
+      allowNull: false,
     },
     imagebyte: {
-      type: DataTypes.STRING, // Representa la nueva columna image con byteaL
-      field: 'image', // Nombre real en la base de datos
-      allowNull: true, // Permite que sea opcional
+      type: DataTypes.STRING,
+      field: 'image',
+      allowNull: true,
     },
     imageUrl: {
-      type: DataTypes.STRING, // Representa la nueva columna image_url como una URL
-      field: 'image_url', // Nombre real en la base de datos
-      allowNull: true, // Permite que sea opcional
+      type: DataTypes.STRING,
+      field: 'image_url',
+      allowNull: true,
+    },
+    // Nuevo campo para almacenar el horario del servicio
+    schedule: {
+      type: DataTypes.JSON,
+      field: 'schedule',
+      allowNull: true, // O false si es obligatorio
+      // Ejemplo de dato:
+      // [
+      //   { days: ["lunes", "martes", "miércoles", "jueves", "viernes"], startTime: "06:00", endTime: "19:00" },
+      //   { days: ["lunes", "miércoles", "viernes"], startTime: "10:00", endTime: "19:00" }
+      // ]
     },
     createdAt: {
       type: DataTypes.DATE,
-      field: 'created_at', // Mapea a la columna de la base de datos
+      field: 'created_at',
     },
     updatedAt: {
       type: DataTypes.DATE,
-      field: 'updated_at', // Mapea a la columna de la base de datos
+      field: 'updated_at',
     },
   },
   {
-    tableName: 'Services', // Nombre de la tabla en la base de datos
-    timestamps: true, // Sequelize manejará automáticamente las marcas de tiempo
+    tableName: 'Services',
+    timestamps: true,
   }
 );
 
