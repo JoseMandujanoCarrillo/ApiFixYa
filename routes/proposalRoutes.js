@@ -351,6 +351,165 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+/* ============================================================
+   Nuevos endpoints:
+   1. Subir imagen_antes
+   2. Subir imagen_despues
+   3. Actualizar cleaner_finished
+   ============================================================ */
+
+/**
+ * @swagger
+ * /proposals/{id}/upload-imagen-antes:
+ *   put:
+ *     summary: Subir imagen_antes de la propuesta
+ *     tags: [Proposals]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la propuesta
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               imagen_antes:
+ *                 type: string
+ *                 description: URL de la imagen antes del servicio.
+ *     responses:
+ *       200:
+ *         description: Propuesta actualizada con imagen_antes.
+ *       400:
+ *         description: imagen_antes es obligatorio.
+ *       404:
+ *         description: Propuesta no encontrada.
+ *       500:
+ *         description: Error del servidor.
+ */
+router.put('/:id/upload-imagen-antes', async (req, res) => {
+  try {
+    const proposal = await Proposal.findByPk(req.params.id);
+    if (!proposal) return res.status(404).send('Proposal not found');
+
+    const { imagen_antes } = req.body;
+    if (!imagen_antes) return res.status(400).send('imagen_antes is required');
+
+    proposal.imagen_antes = imagen_antes;
+    await proposal.save();
+
+    res.json(proposal);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /proposals/{id}/upload-imagen-despues:
+ *   put:
+ *     summary: Subir imagen_despues de la propuesta
+ *     tags: [Proposals]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la propuesta
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               imagen_despues:
+ *                 type: string
+ *                 description: URL de la imagen después del servicio.
+ *     responses:
+ *       200:
+ *         description: Propuesta actualizada con imagen_despues.
+ *       400:
+ *         description: imagen_despues es obligatorio.
+ *       404:
+ *         description: Propuesta no encontrada.
+ *       500:
+ *         description: Error del servidor.
+ */
+router.put('/:id/upload-imagen-despues', async (req, res) => {
+  try {
+    const proposal = await Proposal.findByPk(req.params.id);
+    if (!proposal) return res.status(404).send('Proposal not found');
+
+    const { imagen_despues } = req.body;
+    if (!imagen_despues) return res.status(400).send('imagen_despues is required');
+
+    proposal.imagen_despues = imagen_despues;
+    await proposal.save();
+
+    res.json(proposal);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /proposals/{id}/update-cleaner-finished:
+ *   put:
+ *     summary: Actualizar el campo cleaner_finished de la propuesta
+ *     tags: [Proposals]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la propuesta
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cleaner_finished:
+ *                 type: boolean
+ *                 description: Valor para actualizar el campo cleaner_finished.
+ *     responses:
+ *       200:
+ *         description: Propuesta actualizada con el nuevo valor de cleaner_finished.
+ *       400:
+ *         description: cleaner_finished es obligatorio.
+ *       404:
+ *         description: Propuesta no encontrada.
+ *       500:
+ *         description: Error del servidor.
+ */
+router.put('/:id/update-cleaner-finished', async (req, res) => {
+  try {
+    const proposal = await Proposal.findByPk(req.params.id);
+    if (!proposal) return res.status(404).send('Proposal not found');
+
+    const { cleaner_finished } = req.body;
+    if (cleaner_finished === undefined) {
+      return res.status(400).send('cleaner_finished is required');
+    }
+
+    proposal.cleaner_finished = cleaner_finished;
+    await proposal.save();
+
+    res.json(proposal);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 /**
  * @swagger
  * components:
@@ -373,7 +532,7 @@ router.delete('/:id', async (req, res) => {
  *           description: Fecha de la propuesta
  *         status:
  *           type: string
- *           description: Estado de la propuesta (pending, accepted, rejected)
+ *           description: Estado de la propuesta (pending, accepted, rejected, etc.)
  *         direccion:
  *           type: string
  *           description: Dirección de la propuesta
@@ -392,6 +551,18 @@ router.delete('/:id', async (req, res) => {
  *         tipodeservicio:
  *           type: string
  *           description: Tipo de servicio
+ *         cleanerStarted:
+ *           type: boolean
+ *           description: Indica si el cleaner ha iniciado el servicio
+ *         cleaner_finished:
+ *           type: boolean
+ *           description: Indica si el cleaner ha finalizado el servicio (default false)
+ *         imagen_antes:
+ *           type: string
+ *           description: URL de la imagen antes del servicio (puede ser null)
+ *         imagen_despues:
+ *           type: string
+ *           description: URL de la imagen después del servicio (puede ser null)
  *         createdAt:
  *           type: string
  *           format: date-time

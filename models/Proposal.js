@@ -53,15 +53,29 @@ const Proposal = sequelize.define('Proposal', {
     defaultValue: false,
     field: 'servicio_constante',
   },
-
-  // NUEVO CAMPO: cleanerStarted
   cleanerStarted: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false,
-    field: 'cleaner_started', // Nombre de columna en la DB
+    field: 'cleaner_started',
   },
-
+  // NUEVOS CAMPOS:
+  cleaner_finished: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    field: 'cleaner_finished',
+  },
+  imagen_antes: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'imagen_antes',
+  },
+  imagen_despues: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'imagen_despues',
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
