@@ -188,4 +188,44 @@ router.get('/me/services', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /auditors/all:
+ *   get:
+ *     summary: Obtener todos los auditores
+ *     tags: [Auditors]
+ *     responses:
+ *       200:
+ *         description: Lista de todos los auditores
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   auditor_id:
+ *                     type: integer
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *                   updated_at:
+ *                     type: string
+ *                     format: date-time
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/all', async (req, res) => {
+  try {
+    const auditors = await Auditor.findAll();
+    res.json(auditors);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
