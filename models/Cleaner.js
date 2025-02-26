@@ -28,6 +28,12 @@ const sequelize = require('../config/database');
  *           type: number
  *           format: float
  *           description: Longitud del limpiador
+ *         is_verifiqued:
+ *           type: boolean
+ *           description: Indica si el limpiador ha sido verificado
+ *         auditor_id:
+ *           type: integer
+ *           description: ID del auditor asignado
  */
 const Cleaner = sequelize.define('Cleaner', {
   cleaner_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -36,6 +42,8 @@ const Cleaner = sequelize.define('Cleaner', {
   password: { type: DataTypes.STRING, allowNull: false },
   latitude: { type: DataTypes.FLOAT },
   longitude: { type: DataTypes.FLOAT },
+  is_verifiqued: { type: DataTypes.BOOLEAN, defaultValue: false },
+  auditor_id: { type: DataTypes.INTEGER, allowNull: true }
 }, {
   tableName: 'Cleaners',
   timestamps: true,

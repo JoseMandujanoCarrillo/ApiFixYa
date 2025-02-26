@@ -41,6 +41,10 @@ const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
  *     responses:
  *       201:
  *         description: Limpiador registrado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cleaner'
  */
 router.post('/register', async (req, res) => {
   try {
@@ -53,8 +57,14 @@ router.post('/register', async (req, res) => {
     // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear el limpiador
-    const cleaner = await Cleaner.create({ name, email, password: hashedPassword, latitude, longitude });
+    // Crear el limpiador (is_verifiqued se establecerá por defecto a false)
+    const cleaner = await Cleaner.create({
+      name,
+      email,
+      password: hashedPassword,
+      latitude,
+      longitude
+    });
     res.status(201).json(cleaner);
   } catch (err) {
     res.status(500).send(err.message);
@@ -81,6 +91,13 @@ router.post('/register', async (req, res) => {
  *     responses:
  *       200:
  *         description: Inicio de sesión exitoso, devuelve un token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
  */
 router.post('/login', async (req, res) => {
   try {
@@ -95,7 +112,11 @@ router.post('/login', async (req, res) => {
     if (!validPassword) return res.status(400).send('Invalid password');
 
     // Generar token con la información necesaria
-    const token = jwt.sign({ cleaner_id: cleaner.cleaner_id, email: cleaner.email }, SECRET_KEY, { expiresIn: '3d' });
+    const token = jwt.sign(
+      { cleaner_id: cleaner.cleaner_id, email: cleaner.email },
+      SECRET_KEY,
+      { expiresIn: '3d' }
+    );
     res.json({ token });
   } catch (err) {
     res.status(500).send(err.message);
@@ -151,21 +172,40 @@ router.get('/exists', async (req, res) => {
  *     responses:
  *       200:
  *         description: Información del limpiador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 latitude:
+ *                   type: number
+ *                 longitude:
+ *                   type: number
+ *                 is_verifiqued:
+ *                   type: boolean
+ *                 auditor_id:
+ *                   type: integer
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
-    // Se asume que el middleware 'authenticate' añade la propiedad 'user' al request
     const cleanerId = req.user.cleaner_id; // Extraemos el cleaner_id del token
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
-    // Retornamos la información necesaria del cleaner
     res.json({
       id: cleaner.cleaner_id,
       name: cleaner.name,
       email: cleaner.email,
       latitude: cleaner.latitude,
-      longitude: cleaner.longitude
+      longitude: cleaner.longitude,
+      is_verifiqued: cleaner.is_verifiqued,
+      auditor_id: cleaner.auditor_id
     });
   } catch (err) {
     res.status(500).send(err.message);
@@ -203,6 +243,10 @@ router.get('/me', authenticate, async (req, res) => {
  *                   type: number
  *                 longitude:
  *                   type: number
+ *                 is_verifiqued:
+ *                   type: boolean
+ *                 auditor_id:
+ *                   type: integer
  *       404:
  *         description: Servicio o limpiador no encontrado
  */
@@ -220,7 +264,9 @@ router.get('/service/:serviceId', async (req, res) => {
       name: cleaner.name,
       email: cleaner.email,
       latitude: cleaner.latitude,
-      longitude: cleaner.longitude
+      longitude: cleaner.longitude,
+      is_verifiqued: cleaner.is_verifiqued,
+      auditor_id: cleaner.auditor_id
     });
   } catch (err) {
     res.status(500).send(err.message);
@@ -272,9 +318,7 @@ router.get('/service/:serviceId', async (req, res) => {
  */
 router.get('/me/services', authenticate, async (req, res) => {
   try {
-    // Obtenemos el cleaner_id del token
     const cleanerId = req.user.cleaner_id;
-    // Buscamos todos los servicios asociados al limpiador autenticado
     const services = await Service.findAll({ where: { cleanerId } });
     res.json(services);
   } catch (err) {
