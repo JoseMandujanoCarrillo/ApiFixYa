@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Auditor = require('../models/Auditor');
+const Service = require('../models/Service'); // Asegúrate de tener definido este modelo
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -140,6 +141,48 @@ router.get('/me', authenticate, async (req, res) => {
       created_at: auditor.created_at,
       updated_at: auditor.updated_at
     });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /auditors/me/services:
+ *   get:
+ *     summary: Obtener la lista de servicios y la cantidad para el auditor autenticado
+ *     tags: [Auditors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de servicios y la cantidad
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 servicesCount:
+ *                   type: integer
+ *                 services:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       service_id:
+ *                         type: integer
+ *                       service_name:
+ *                         type: string
+ *                       auditor_id:
+ *                         type: integer
+ *       401:
+ *         description: No autorizado
+ */
+router.get('/me/services', authenticate, async (req, res) => {
+  try {
+    const auditorId = req.user.auditor_id;
+    const services = await Service.findAll({ where: { auditor_id: auditorId } });
+    res.json({ servicesCount: services.length, services });
   } catch (err) {
     res.status(500).send(err.message);
   }
