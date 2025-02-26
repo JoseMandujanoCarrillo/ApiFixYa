@@ -326,4 +326,64 @@ router.get('/me/services', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /cleaners/me:
+ *   put:
+ *     summary: Editar la información del limpiador autenticado
+ *     tags: [Cleaners]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               latitude:
+ *                 type: number
+ *               longitude:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Limpiador actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cleaner'
+ *       400:
+ *         description: Error en la actualización
+ *       401:
+ *         description: No autorizado
+ */
+router.put('/me', authenticate, async (req, res) => {
+  try {
+    const cleanerId = req.user.cleaner_id;
+    const { name, email, password, latitude, longitude } = req.body;
+    const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
+    if (!cleaner) return res.status(404).send('Cleaner not found');
+
+    // Actualizar campos si se proporcionan
+    if (name !== undefined) cleaner.name = name;
+    if (email !== undefined) cleaner.email = email;
+    if (latitude !== undefined) cleaner.latitude = latitude;
+    if (longitude !== undefined) cleaner.longitude = longitude;
+    if (password !== undefined) {
+      cleaner.password = await bcrypt.hash(password, 10);
+    }
+
+    await cleaner.save();
+    res.json(cleaner);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
