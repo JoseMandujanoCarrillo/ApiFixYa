@@ -1,7 +1,7 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const Proposal = require('../models/Proposal');
-const Service = require('../models/Service'); // Se importa el modelo Service para relacionar los servicios con los cleaners
+const Service = require('../models/Service'); // Asegúrate de que exista la relación: Proposal.belongsTo(Service, { foreignKey: 'serviceId' });
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -512,68 +512,61 @@ router.put('/:id/update-cleaner-finished', async (req, res) => {
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Proposal:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *           description: ID de la propuesta
- *         serviceId:
- *           type: integer
- *           description: ID del servicio relacionado
- *         userId:
- *           type: integer
- *           description: ID del usuario que hizo la propuesta
- *         date:
- *           type: string
- *           format: date-time
- *           description: Fecha de la propuesta
- *         status:
- *           type: string
- *           description: Estado de la propuesta (pending, accepted, rejected, etc.)
- *         direccion:
- *           type: string
- *           description: Dirección de la propuesta
- *         cardId:
- *           type: integer
- *           description: ID de la tarjeta (foreign key de creditcards)
- *         Descripcion:
- *           type: string
- *           description: Descripción de la propuesta
- *         UsuarioEnCasa:
- *           type: boolean
- *           description: Indica si el usuario estará en casa
- *         servicioConstante:
- *           type: boolean
- *           description: Indica si el servicio es constante/recurrente
- *         tipodeservicio:
- *           type: string
- *           description: Tipo de servicio
- *         cleanerStarted:
- *           type: boolean
- *           description: Indica si el cleaner ha iniciado el servicio
- *         cleaner_finished:
- *           type: boolean
- *           description: Indica si el cleaner ha finalizado el servicio (default false)
- *         imagen_antes:
- *           type: string
- *           description: URL de la imagen antes del servicio (puede ser null)
- *         imagen_despues:
- *           type: string
- *           description: URL de la imagen después del servicio (puede ser null)
- *         createdAt:
- *           type: string
- *           format: date-time
- *           description: Fecha de creación
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           description: Fecha de última actualización
- *       required:
- *         - serviceId
- *         - userId
- *         - direccion
+ * /proposals/finished:
+ *   get:
+ *     summary: Obtener las propuestas con estado "finished" y sus precios
+ *     tags: [Proposals]
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas con estado finished y sus precios
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 finishedCount:
+ *                   type: integer
+ *                 proposals:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       status:
+ *                         type: string
+ *                       price:
+ *                         type: number
+ *       500:
+ *         description: Error del servidor
  */
+router.get('/finished', async (req, res) => {
+  try {
+    // Buscamos las propuestas cuyo status sea "finished"
+    const proposals = await Proposal.findAll({
+      where: { status: 'finished' },
+      include: [{
+        model: Service,
+        attributes: ['price']
+      }]
+    });
+
+    const finishedCount = proposals.length;
+
+    // Mapeamos la respuesta para incluir el precio desde el modelo Service
+    const proposalsResult = proposals.map(prop => ({
+      id: prop.id,
+      status: prop.status,
+      price: prop.Service ? prop.Service.price : null
+    }));
+
+    res.json({
+      finishedCount,
+      proposals: proposalsResult
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
