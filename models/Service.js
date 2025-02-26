@@ -13,6 +13,21 @@ const Service = sequelize.define(
       type: DataTypes.INTEGER,
       field: 'cleaner_id',
       allowNull: false,
+      // Aquí se asume que existe una tabla Cleaners con la que se relaciona este campo.
+      // Si deseas definir la relación, podrías agregar:
+      // references: {
+      //   model: 'Cleaners',
+      //   key: 'id'
+      // },
+    },
+    auditorId: {
+      type: DataTypes.INTEGER,
+      field: 'auditor_id',
+      allowNull: false,
+      references: {
+        model: 'Auditors', // Nombre de la tabla de auditores en la base de datos
+        key: 'auditor_id', // Clave primaria en la tabla de auditores
+      },
     },
     description: {
       type: DataTypes.TEXT,
@@ -34,16 +49,11 @@ const Service = sequelize.define(
       field: 'image_url',
       allowNull: true,
     },
-    // Nuevo campo para almacenar el horario del servicio
+    // Campo para almacenar el horario del servicio
     schedule: {
       type: DataTypes.JSON,
       field: 'schedule',
-      allowNull: true, // O false si es obligatorio
-      // Ejemplo de dato:
-      // [
-      //   { days: ["lunes", "martes", "miércoles", "jueves", "viernes"], startTime: "06:00", endTime: "19:00" },
-      //   { days: ["lunes", "miércoles", "viernes"], startTime: "10:00", endTime: "19:00" }
-      // ]
+      allowNull: true,
     },
     createdAt: {
       type: DataTypes.DATE,
