@@ -1,18 +1,17 @@
-// routes/auditorRoutes.js
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Auditor = require('../models/Auditor');
-const { authenticate } = require('../middleware/auth'); // Reutilizamos tu 'auth.js'
+const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
-const SECRET_KEY = 'my_super_secret_key'; // Cámbialo a algo seguro
+const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave segura y asegúrate de usar la misma en tu middleware
 
 /**
  * @swagger
  * tags:
  *   name: Auditors
- *   description: Gestión de auditores
+ *   description: Gestión de auditores
  */
 
 /**
@@ -38,37 +37,29 @@ const SECRET_KEY = 'my_super_secret_key'; // Cámbialo a algo seguro
  *       201:
  *         description: Auditor registrado exitosamente
  *       400:
- *         description: El correo ya está en uso
+ *         description: El correo ya está en uso
  */
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Verificar si ya existe ese email
-    const existing = await Auditor.findOne({ where: { email } });
-    if (existing) {
-      return res.status(400).json({ message: 'Email already registered' });
-    }
+    // Verificar si el auditor ya existe
+    const existingAuditor = await Auditor.findOne({ where: { email } });
+    if (existingAuditor) return res.status(400).send('Email already registered');
 
-    // Encriptar la contraseña
-    const hashed = await bcrypt.hash(password, 10);
+    // Encriptar la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear el registro
-    const newAuditor = await Auditor.create({
+    // Crear el auditor
+    const auditor = await Auditor.create({
       name,
       email,
-      password: hashed
+      password: hashedPassword
     });
 
-    res.status(201).json({
-      auditor_id: newAuditor.auditor_id,
-      name: newAuditor.name,
-      email: newAuditor.email,
-      created_at: newAuditor.created_at
-    });
+    res.status(201).json(auditor);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error al registrar auditor' });
+    res.status(500).send(err.message);
   }
 });
 
@@ -76,7 +67,7 @@ router.post('/register', async (req, res) => {
  * @swagger
  * /auditors/login:
  *   post:
- *     summary: Iniciar sesión como auditor
+ *     summary: Iniciar sesión como auditor
  *     tags: [Auditors]
  *     requestBody:
  *       required: true
@@ -91,33 +82,33 @@ router.post('/register', async (req, res) => {
  *                 type: string
  *     responses:
  *       200:
- *         description: Devuelve token JWT
- *       401:
- *         description: Credenciales inválidas
+ *         description: Inicio de sesión exitoso, devuelve un token
+ *       404:
+ *         description: Auditor no encontrado
+ *       400:
+ *         description: Contraseña inválida
  */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // Verificar si el auditor existe
     const auditor = await Auditor.findOne({ where: { email } });
-    if (!auditor) {
-      return res.status(401).json({ message: 'Auditor not found' });
-    }
+    if (!auditor) return res.status(404).send('Auditor not found');
 
-    const valid = await bcrypt.compare(password, auditor.password);
-    if (!valid) {
-      return res.status(401).json({ message: 'Invalid password' });
-    }
+    // Comparar contraseñas
+    const validPassword = await bcrypt.compare(password, auditor.password);
+    if (!validPassword) return res.status(400).send('Invalid password');
 
-    // Generar token
-    const token = jwt.sign({
-      auditor_id: auditor.auditor_id,
-      email: auditor.email
-    }, SECRET_KEY, { expiresIn: '1d' });
-
+    // Generar token con la información necesaria
+    const token = jwt.sign(
+      { auditor_id: auditor.auditor_id, email: auditor.email },
+      SECRET_KEY,
+      { expiresIn: '3d' }
+    );
     res.json({ token });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error al iniciar sesión' });
+    res.status(500).send(err.message);
   }
 });
 
@@ -125,28 +116,22 @@ router.post('/login', async (req, res) => {
  * @swagger
  * /auditors/me:
  *   get:
- *     summary: Obtener la información del auditor autenticado
+ *     summary: Obtener la información del auditor autenticado
  *     tags: [Auditors]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Datos del auditor
+ *         description: Información del auditor
  *       401:
  *         description: No autorizado
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
-    // 'authenticate' debería inyectar req.user con { auditor_id, email }
-    const auditorId = req.user?.auditor_id;
-    if (!auditorId) {
-      return res.status(401).json({ message: 'Not authorized' });
-    }
-
-    const auditor = await Auditor.findByPk(auditorId);
-    if (!auditor) {
-      return res.status(404).json({ message: 'Auditor not found' });
-    }
+    // Se asume que el middleware 'authenticate' añade la propiedad 'user' al request
+    const auditorId = req.user.auditor_id;
+    const auditor = await Auditor.findOne({ where: { auditor_id: auditorId } });
+    if (!auditor) return res.status(404).send('Auditor not found');
 
     res.json({
       auditor_id: auditor.auditor_id,
@@ -156,8 +141,7 @@ router.get('/me', authenticate, async (req, res) => {
       updated_at: auditor.updated_at
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error al obtener auditor' });
+    res.status(500).send(err.message);
   }
 });
 
