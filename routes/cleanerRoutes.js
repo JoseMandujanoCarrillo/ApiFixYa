@@ -330,7 +330,7 @@ router.get('/me/services', authenticate, async (req, res) => {
  * @swagger
  * /cleaners/me:
  *   put:
- *     summary: Editar la información del limpiador autenticado
+ *     summary: Editar la información del limpiador autenticado (todos los campos)
  *     tags: [Cleaners]
  *     security:
  *       - bearerAuth: []
@@ -351,6 +351,10 @@ router.get('/me/services', authenticate, async (req, res) => {
  *                 type: number
  *               longitude:
  *                 type: number
+ *               is_verifiqued:
+ *                 type: boolean
+ *               auditor_id:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: Limpiador actualizado exitosamente
@@ -366,11 +370,10 @@ router.get('/me/services', authenticate, async (req, res) => {
 router.put('/me', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.cleaner_id;
-    const { name, email, password, latitude, longitude } = req.body;
+    const { name, email, password, latitude, longitude, is_verifiqued, auditor_id } = req.body;
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
-    // Actualizar campos si se proporcionan
     if (name !== undefined) cleaner.name = name;
     if (email !== undefined) cleaner.email = email;
     if (latitude !== undefined) cleaner.latitude = latitude;
@@ -378,6 +381,8 @@ router.put('/me', authenticate, async (req, res) => {
     if (password !== undefined) {
       cleaner.password = await bcrypt.hash(password, 10);
     }
+    if (is_verifiqued !== undefined) cleaner.is_verifiqued = is_verifiqued;
+    if (auditor_id !== undefined) cleaner.auditor_id = auditor_id;
 
     await cleaner.save();
     res.json(cleaner);
