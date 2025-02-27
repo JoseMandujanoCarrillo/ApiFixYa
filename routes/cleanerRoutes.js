@@ -391,4 +391,58 @@ router.put('/me', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /cleaners/{id}/verify:
+ *   put:
+ *     summary: Actualizar el estado de verificación de un limpiador por ID
+ *     tags: [Cleaners]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del limpiador a actualizar
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               is_verifiqued:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Limpiador actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cleaner'
+ *       400:
+ *         description: Error en la solicitud
+ *       404:
+ *         description: Limpiador no encontrado
+ */
+router.put('/:id/verify', async (req, res) => {
+  try {
+    const cleanerId = req.params.id;
+    const { is_verifiqued } = req.body;
+    
+    if (typeof is_verifiqued !== 'boolean') {
+      return res.status(400).send('El campo is_verifiqued es requerido y debe ser booleano');
+    }
+
+    const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
+    if (!cleaner) return res.status(404).send('Cleaner not found');
+
+    cleaner.is_verifiqued = is_verifiqued;
+    await cleaner.save();
+    res.json(cleaner);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
