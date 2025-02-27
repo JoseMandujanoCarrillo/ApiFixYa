@@ -7,6 +7,7 @@ const serviceRoutes = require('./routes/serviceRoutes');
 const userRoutes = require('./routes/userRoutes');
 const creditCardRoutes = require('./routes/CreditCardRoutes');
 const auditorRoutes = require('./routes/auditorRoutes');
+const mercadopagoRoutes = require('./routes/mercadopago');
 
 const app = express();
 
@@ -28,8 +29,9 @@ app.use('/cleaners', cleanerRoutes);
 app.use('/proposals', proposalRoutes);
 app.use('/services', serviceRoutes);
 app.use('/users', userRoutes);
-app.use('/creditcards', creditCardRoutes); // Aquí se define la ruta base
+app.use('/creditcards', creditCardRoutes);
 app.use('/auditors', auditorRoutes);
+app.use('/mercadopago', mercadopagoRoutes); // Se añade la ruta de Mercado Pago
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 3000;
