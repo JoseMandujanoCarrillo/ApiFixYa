@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Auditor = require('../models/Auditor');
 const Cleaner = require('../models/Cleaner'); // Se requiere para obtener los cleaners
-const Service = require('../models/Service'); // Asegúrate de tener definido este modelo
+const Service = require('../models/Service'); // Se requiere para obtener los services
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -256,6 +256,63 @@ router.get('/me/cleaners', authenticate, async (req, res) => {
     const auditorId = req.user.auditor_id;
     const cleaners = await Cleaner.findAll({ where: { auditor_id: auditorId } });
     res.json(cleaners);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /cleaners/{id}/verify:
+ *   patch:
+ *     summary: Actualizar el estado de verificación de un cleaner
+ *     tags: [Cleaners]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del cleaner a actualizar
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               is_verified:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Estado de verificación actualizado exitosamente
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Cleaner no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_verified } = req.body;
+
+    if (typeof is_verified !== 'boolean') {
+      return res.status(400).send('Invalid data format');
+    }
+
+    const cleaner = await Cleaner.findByPk(id);
+    if (!cleaner) {
+      return res.status(404).send('Cleaner not found');
+    }
+
+    cleaner.is_verified = is_verified;
+    await cleaner.save();
+
+    res.json({ message: 'Verification status updated successfully', cleaner });
   } catch (err) {
     res.status(500).send(err.message);
   }
