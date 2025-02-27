@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const Auditor = require('../models/Auditor');
+const Cleaner = require('../models/Cleaner'); // Se requiere para obtener los cleaners
 const Service = require('../models/Service'); // Asegúrate de tener definido este modelo
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
@@ -223,6 +224,38 @@ router.get('/all', async (req, res) => {
   try {
     const auditors = await Auditor.findAll();
     res.json(auditors);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /auditors/me/cleaners:
+ *   get:
+ *     summary: Obtener todos los cleaners asignados al auditor autenticado
+ *     tags: [Auditors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de cleaners asignados al auditor autenticado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Cleaner'
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/me/cleaners', authenticate, async (req, res) => {
+  try {
+    const auditorId = req.user.auditor_id;
+    const cleaners = await Cleaner.findAll({ where: { auditor_id: auditorId } });
+    res.json(cleaners);
   } catch (err) {
     res.status(500).send(err.message);
   }
