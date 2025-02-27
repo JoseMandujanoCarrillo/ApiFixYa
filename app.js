@@ -15,7 +15,7 @@ app.use(express.json());
 
 // Configuración de CORS: Puedes ajustar 'origin' según tus necesidades
 app.use(cors({
-  origin: 'http://127.0.0.1:5500', // Permite solicitudes desde este origen. Si deseas permitir todos los orígenes, puedes usar '*'
+  origin: '*', // Permite solicitudes desde este origen. Si deseas permitir todos los orígenes, puedes usar '*'
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
