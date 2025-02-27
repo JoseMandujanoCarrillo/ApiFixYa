@@ -1,14 +1,26 @@
 // models/payment.js
 const { DataTypes } = require('sequelize');
-
 const sequelize = require('../config/database');
 
-const PaymentSchema = sequelize.define({
-  paymentId: { type: String }, // ID de pago proporcionado por Mercado Pago
-  status: { type: String, required: true }, // 'approved', 'failure', 'pending', etc.
-  merchantOrderId: { type: String }, // ID de la orden del comerciante
-  preferenceId: { type: String, required: true }, // ID de la preferencia de Mercado Pago
-  createdAt: { type: Date, default: Date.now },
+const Payment = sequelize.define('Payment', {
+  paymentId: {
+    type: DataTypes.STRING,
+  },
+  status: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  merchantOrderId: {
+    type: DataTypes.STRING,
+  },
+  preferenceId: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  createdAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW,
+  },
 });
 
-module.exports = PaymentSchema;
+module.exports = Payment;
