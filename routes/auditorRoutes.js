@@ -278,6 +278,7 @@ router.get('/me/cleaners', authenticate, async (req, res) => {
  *         description: ID del cleaner a actualizar
  *     requestBody:
  *       required: true
+ *       description: Objeto con el nuevo estado de verificación para el cleaner
  *       content:
  *         application/json:
  *           schema:
@@ -285,9 +286,22 @@ router.get('/me/cleaners', authenticate, async (req, res) => {
  *             properties:
  *               is_verified:
  *                 type: boolean
+ *                 description: Nuevo estado de verificación para el cleaner
+ *             example:
+ *               is_verified: true
  *     responses:
  *       200:
  *         description: Estado de verificación actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Estado de verificación actualizado exitosamente
+ *                 cleaner:
+ *                   $ref: '#/components/schemas/Cleaner'
  *       400:
  *         description: Datos inválidos
  *       404:
@@ -301,7 +315,7 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
     const { is_verified } = req.body;
 
     if (typeof is_verified !== 'boolean') {
-      return res.status(400).send('Invalid data format');
+      return res.status(400).send('Formato de datos inválido');
     }
 
     const cleaner = await Cleaner.findByPk(id);
