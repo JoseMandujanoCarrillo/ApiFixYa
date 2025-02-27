@@ -23,7 +23,7 @@ const Service = sequelize.define(
     auditorId: {
       type: DataTypes.INTEGER,
       field: 'auditor_id',
-      allowNull: false,
+      allowNull: true,
       references: {
         model: 'Auditors', // Nombre de la tabla de auditores en la base de datos
         key: 'auditor_id', // Clave primaria en la tabla de auditores
