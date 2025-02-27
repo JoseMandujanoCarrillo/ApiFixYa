@@ -3,7 +3,7 @@ const { DataTypes } = require('sequelize');
 
 const sequelize = require('../config/database');
 
-const PaymentSchema = new mongoose.Schema({
+const PaymentSchema = sequelize.define({
   paymentId: { type: String }, // ID de pago proporcionado por Mercado Pago
   status: { type: String, required: true }, // 'approved', 'failure', 'pending', etc.
   merchantOrderId: { type: String }, // ID de la orden del comerciante
@@ -11,4 +11,4 @@ const PaymentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model('Payment', PaymentSchema);
+module.exports = PaymentSchema;
