@@ -1,7 +1,7 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const Proposal = require('../models/Proposal');
-const Service = require('../models/Service'); // Asegúrate de que exista la relación: Proposal.belongsTo(Service, { foreignKey: 'serviceId' });
+const Service = require('../models/Service'); // Se asume la relación: Proposal.belongsTo(Service, { foreignKey: 'serviceId' });
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -353,8 +353,8 @@ router.delete('/:id', async (req, res) => {
 
 /* ============================================================
    Nuevos endpoints:
-   1. Subir imagen_antes
-   2. Subir imagen_despues
+   1. Subir imagen_antes (ahora acepta un array de URLs)
+   2. Subir imagen_despues (ahora acepta un array de URLs)
    3. Actualizar cleaner_finished
    ============================================================ */
 
@@ -379,13 +379,15 @@ router.delete('/:id', async (req, res) => {
  *             type: object
  *             properties:
  *               imagen_antes:
- *                 type: string
- *                 description: URL de la imagen antes del servicio.
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array de URLs de la imagen antes del servicio.
  *     responses:
  *       200:
  *         description: Propuesta actualizada con imagen_antes.
  *       400:
- *         description: imagen_antes es obligatorio.
+ *         description: imagen_antes es obligatorio y debe ser un array.
  *       404:
  *         description: Propuesta no encontrada.
  *       500:
@@ -398,6 +400,9 @@ router.put('/:id/upload-imagen-antes', async (req, res) => {
 
     const { imagen_antes } = req.body;
     if (!imagen_antes) return res.status(400).send('imagen_antes is required');
+    if (!Array.isArray(imagen_antes)) {
+      return res.status(400).send('imagen_antes must be an array of strings');
+    }
 
     proposal.imagen_antes = imagen_antes;
     await proposal.save();
@@ -429,13 +434,15 @@ router.put('/:id/upload-imagen-antes', async (req, res) => {
  *             type: object
  *             properties:
  *               imagen_despues:
- *                 type: string
- *                 description: URL de la imagen después del servicio.
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array de URLs de la imagen después del servicio.
  *     responses:
  *       200:
  *         description: Propuesta actualizada con imagen_despues.
  *       400:
- *         description: imagen_despues es obligatorio.
+ *         description: imagen_despues es obligatorio y debe ser un array.
  *       404:
  *         description: Propuesta no encontrada.
  *       500:
@@ -448,6 +455,9 @@ router.put('/:id/upload-imagen-despues', async (req, res) => {
 
     const { imagen_despues } = req.body;
     if (!imagen_despues) return res.status(400).send('imagen_despues is required');
+    if (!Array.isArray(imagen_despues)) {
+      return res.status(400).send('imagen_despues must be an array of strings');
+    }
 
     proposal.imagen_despues = imagen_despues;
     await proposal.save();

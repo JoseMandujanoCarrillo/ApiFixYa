@@ -67,12 +67,12 @@ const Proposal = sequelize.define('Proposal', {
     field: 'cleaner_finished',
   },
   imagen_antes: {
-    type: DataTypes.STRING,
+    type: DataTypes.ARRAY(DataTypes.STRING),
     allowNull: true,
     field: 'imagen_antes',
   },
   imagen_despues: {
-    type: DataTypes.STRING,
+    type: DataTypes.ARRAY(DataTypes.STRING),
     allowNull: true,
     field: 'imagen_despues',
   },
