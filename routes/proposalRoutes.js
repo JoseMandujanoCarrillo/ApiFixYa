@@ -353,8 +353,8 @@ router.delete('/:id', async (req, res) => {
 
 /* ============================================================
    Nuevos endpoints:
-   1. Subir imagen_antes (ahora acepta un array de URLs)
-   2. Subir imagen_despues (ahora acepta un array de URLs)
+   1. Subir imagen_antes (campo JSONB, se espera un array de URLs)
+   2. Subir imagen_despues (campo JSONB, se espera un array de URLs)
    3. Actualizar cleaner_finished
    ============================================================ */
 
