@@ -464,7 +464,7 @@ router.put('/:id/verify', async (req, res) => {
  * @swagger
  * /cleaners/{id}/public:
  *   get:
- *     summary: Obtener el nombre y la imagen del limpiador sin autenticación
+ *     summary: Obtener el nombre, correo e imagen del limpiador sin autenticación
  *     tags: [Cleaners]
  *     parameters:
  *       - in: path
@@ -475,7 +475,7 @@ router.put('/:id/verify', async (req, res) => {
  *         description: ID del limpiador
  *     responses:
  *       200:
- *         description: Nombre e imagen del limpiador
+ *         description: Nombre, correo e imagen del limpiador
  *         content:
  *           application/json:
  *             schema:
@@ -484,6 +484,8 @@ router.put('/:id/verify', async (req, res) => {
  *                 id:
  *                   type: integer
  *                 name:
+ *                   type: string
+ *                 email:
  *                   type: string
  *                 imageurl:
  *                   type: string
@@ -500,6 +502,7 @@ router.get('/:id/public', async (req, res) => {
     res.json({
       id: cleaner.cleaner_id,
       name: cleaner.name,
+      email: cleaner.email, // Se añade el correo del cleaner
       imageurl: cleaner.imageurl || null
     });
   } catch (err) {
