@@ -445,4 +445,52 @@ router.put('/:id/verify', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /cleaners/{id}/public:
+ *   get:
+ *     summary: Obtener el nombre y la foto del limpiador sin autenticación
+ *     tags: [Cleaners]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del limpiador
+ *     responses:
+ *       200:
+ *         description: Nombre y foto del limpiador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 photo:
+ *                   type: string
+ *       404:
+ *         description: Limpiador no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/:id/public', async (req, res) => {
+  try {
+    const cleaner = await Cleaner.findOne({ where: { cleaner_id: req.params.id } });
+    if (!cleaner) return res.status(404).send('Cleaner not found');
+
+    // Se asume que el modelo Cleaner tiene una propiedad 'photo' o 'imageUrl' para la foto del perfil.
+    res.json({
+      id: cleaner.cleaner_id,
+      name: cleaner.name,
+      photo: cleaner.photo || cleaner.imageUrl || null
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
