@@ -38,6 +38,9 @@ const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
  *                 type: number
  *               longitude:
  *                 type: number
+ *               imageurl:
+ *                 type: string
+ *                 description: URL de la imagen del limpiador
  *     responses:
  *       201:
  *         description: Limpiador registrado exitosamente
@@ -48,7 +51,7 @@ const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
  */
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, latitude, longitude } = req.body;
+    const { name, email, password, latitude, longitude, imageurl } = req.body;
 
     // Verificar si el limpiador ya existe
     const existingCleaner = await Cleaner.findOne({ where: { email } });
@@ -57,13 +60,14 @@ router.post('/register', async (req, res) => {
     // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear el limpiador (is_verifiqued se establecerá por defecto a false)
+    // Crear el limpiador (is_verifiqued se establece por defecto a false)
     const cleaner = await Cleaner.create({
       name,
       email,
       password: hashedPassword,
       latitude,
-      longitude
+      longitude,
+      imageurl
     });
     res.status(201).json(cleaner);
   } catch (err) {
@@ -191,6 +195,8 @@ router.get('/exists', async (req, res) => {
  *                   type: boolean
  *                 auditor_id:
  *                   type: integer
+ *                 imageurl:
+ *                   type: string
  */
 router.get('/me', authenticate, async (req, res) => {
   try {
@@ -205,7 +211,8 @@ router.get('/me', authenticate, async (req, res) => {
       latitude: cleaner.latitude,
       longitude: cleaner.longitude,
       is_verifiqued: cleaner.is_verifiqued,
-      auditor_id: cleaner.auditor_id
+      auditor_id: cleaner.auditor_id,
+      imageurl: cleaner.imageurl
     });
   } catch (err) {
     res.status(500).send(err.message);
@@ -247,6 +254,8 @@ router.get('/me', authenticate, async (req, res) => {
  *                   type: boolean
  *                 auditor_id:
  *                   type: integer
+ *                 imageurl:
+ *                   type: string
  *       404:
  *         description: Servicio o limpiador no encontrado
  */
@@ -266,7 +275,8 @@ router.get('/service/:serviceId', async (req, res) => {
       latitude: cleaner.latitude,
       longitude: cleaner.longitude,
       is_verifiqued: cleaner.is_verifiqued,
-      auditor_id: cleaner.auditor_id
+      auditor_id: cleaner.auditor_id,
+      imageurl: cleaner.imageurl
     });
   } catch (err) {
     res.status(500).send(err.message);
@@ -355,6 +365,9 @@ router.get('/me/services', authenticate, async (req, res) => {
  *                 type: boolean
  *               auditor_id:
  *                 type: integer
+ *               imageurl:
+ *                 type: string
+ *                 description: URL de la imagen del limpiador
  *     responses:
  *       200:
  *         description: Limpiador actualizado exitosamente
@@ -370,7 +383,7 @@ router.get('/me/services', authenticate, async (req, res) => {
 router.put('/me', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.cleaner_id;
-    const { name, email, password, latitude, longitude, is_verifiqued, auditor_id } = req.body;
+    const { name, email, password, latitude, longitude, is_verifiqued, auditor_id, imageurl } = req.body;
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
@@ -383,6 +396,7 @@ router.put('/me', authenticate, async (req, res) => {
     }
     if (is_verifiqued !== undefined) cleaner.is_verifiqued = is_verifiqued;
     if (auditor_id !== undefined) cleaner.auditor_id = auditor_id;
+    if (imageurl !== undefined) cleaner.imageurl = imageurl;
 
     await cleaner.save();
     res.json(cleaner);
@@ -437,6 +451,7 @@ router.put('/:id/verify', async (req, res) => {
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
+    // Asignamos el valor correcto de is_verifiqued
     cleaner.is_verifiqued = is_verifiqued;
     await cleaner.save();
     res.json(cleaner);
@@ -449,7 +464,7 @@ router.put('/:id/verify', async (req, res) => {
  * @swagger
  * /cleaners/{id}/public:
  *   get:
- *     summary: Obtener el nombre y la foto del limpiador sin autenticación
+ *     summary: Obtener el nombre y la imagen del limpiador sin autenticación
  *     tags: [Cleaners]
  *     parameters:
  *       - in: path
@@ -460,7 +475,7 @@ router.put('/:id/verify', async (req, res) => {
  *         description: ID del limpiador
  *     responses:
  *       200:
- *         description: Nombre y foto del limpiador
+ *         description: Nombre e imagen del limpiador
  *         content:
  *           application/json:
  *             schema:
@@ -470,7 +485,7 @@ router.put('/:id/verify', async (req, res) => {
  *                   type: integer
  *                 name:
  *                   type: string
- *                 photo:
+ *                 imageurl:
  *                   type: string
  *       404:
  *         description: Limpiador no encontrado
@@ -482,11 +497,10 @@ router.get('/:id/public', async (req, res) => {
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: req.params.id } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
-    // Se asume que el modelo Cleaner tiene una propiedad 'photo' o 'imageUrl' para la foto del perfil.
     res.json({
       id: cleaner.cleaner_id,
       name: cleaner.name,
-      photo: cleaner.photo || cleaner.imageUrl || null
+      imageurl: cleaner.imageurl || null
     });
   } catch (err) {
     res.status(500).send(err.message);

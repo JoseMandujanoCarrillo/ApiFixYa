@@ -34,6 +34,9 @@ const sequelize = require('../config/database');
  *         auditor_id:
  *           type: integer
  *           description: ID del auditor asignado
+ *         imageurl:
+ *           type: string
+ *           description: URL de la imagen del limpiador
  */
 const Cleaner = sequelize.define('Cleaner', {
   cleaner_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -43,7 +46,8 @@ const Cleaner = sequelize.define('Cleaner', {
   latitude: { type: DataTypes.FLOAT },
   longitude: { type: DataTypes.FLOAT },
   is_verifiqued: { type: DataTypes.BOOLEAN, defaultValue: false },
-  auditor_id: { type: DataTypes.INTEGER, allowNull: true }
+  auditor_id: { type: DataTypes.INTEGER, allowNull: true },
+  imageurl: { type: DataTypes.TEXT, allowNull: true }
 }, {
   tableName: 'Cleaners',
   timestamps: true,
