@@ -1,9 +1,12 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 const Cleaner = require('../models/Cleaner');
-const Service = require('../models/Service'); // Importamos el modelo Service para relacionarlo
+const Service = require('../models/Service');
+const Proposal = require('../models/Proposal'); // Asegúrate de tener definido este modelo
 const { authenticate } = require('../middleware/auth');
+
 const router = express.Router();
 
 const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
@@ -49,7 +52,7 @@ const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
  *             schema:
  *               $ref: '#/components/schemas/Cleaner'
  */
-router.post('/register', async (req, res) => {
+router.post('/cleaners/register', async (req, res) => {
   try {
     const { name, email, password, latitude, longitude, imageurl } = req.body;
 
@@ -103,7 +106,7 @@ router.post('/register', async (req, res) => {
  *                 token:
  *                   type: string
  */
-router.post('/login', async (req, res) => {
+router.post('/cleaners/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -151,7 +154,7 @@ router.post('/login', async (req, res) => {
  *                 exists:
  *                   type: boolean
  */
-router.get('/exists', async (req, res) => {
+router.get('/cleaners/exists', async (req, res) => {
   try {
     const email = req.query.email;
     if (!email) {
@@ -198,7 +201,7 @@ router.get('/exists', async (req, res) => {
  *                 imageurl:
  *                   type: string
  */
-router.get('/me', authenticate, async (req, res) => {
+router.get('/cleaners/me', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.cleaner_id; // Extraemos el cleaner_id del token
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
@@ -259,7 +262,7 @@ router.get('/me', authenticate, async (req, res) => {
  *       404:
  *         description: Servicio o limpiador no encontrado
  */
-router.get('/service/:serviceId', async (req, res) => {
+router.get('/cleaners/service/:serviceId', async (req, res) => {
   try {
     const serviceId = req.params.serviceId;
     const service = await Service.findOne({ where: { id: serviceId } });
@@ -326,7 +329,7 @@ router.get('/service/:serviceId', async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
-router.get('/me/services', authenticate, async (req, res) => {
+router.get('/cleaners/me/services', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.cleaner_id;
     const services = await Service.findAll({ where: { cleanerId } });
@@ -380,7 +383,7 @@ router.get('/me/services', authenticate, async (req, res) => {
  *       401:
  *         description: No autorizado
  */
-router.put('/me', authenticate, async (req, res) => {
+router.put('/cleaners/me', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.cleaner_id;
     const { name, email, password, latitude, longitude, is_verifiqued, auditor_id, imageurl } = req.body;
@@ -439,7 +442,7 @@ router.put('/me', authenticate, async (req, res) => {
  *       404:
  *         description: Limpiador no encontrado
  */
-router.put('/:id/verify', async (req, res) => {
+router.put('/cleaners/:id/verify', async (req, res) => {
   try {
     const cleanerId = req.params.id;
     const { is_verifiqued } = req.body;
@@ -494,7 +497,7 @@ router.put('/:id/verify', async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
-router.get('/:id/public', async (req, res) => {
+router.get('/cleaners/:id/public', async (req, res) => {
   try {
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: req.params.id } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
@@ -507,6 +510,50 @@ router.get('/:id/public', async (req, res) => {
     });
   } catch (err) {
     res.status(500).send(err.message);
+  }
+});
+
+/**
+ * Endpoint para crear una propuesta con validación.
+ * La validación impide crear una propuesta con el mismo serviceId y con la misma fecha y hora,
+ * o dentro de un rango de 2 horas (antes o después) de la fecha especificada.
+ */
+router.post('/proposals', async (req, res) => {
+  try {
+    const { serviceId, dateTime } = req.body;
+    if (!serviceId || !dateTime) {
+      return res.status(400).send('El serviceId y dateTime son requeridos');
+    }
+
+    // Convertir el campo dateTime a un objeto Date
+    const proposalDate = new Date(dateTime);
+    if (isNaN(proposalDate)) {
+      return res.status(400).send('Fecha y hora inválida');
+    }
+
+    // Definir el rango de 2 horas: desde 2 horas antes hasta 2 horas después de la fecha indicada
+    const twoHoursBefore = new Date(proposalDate.getTime() - 2 * 60 * 60 * 1000);
+    const twoHoursAfter = new Date(proposalDate.getTime() + 2 * 60 * 60 * 1000);
+
+    // Buscar si ya existe alguna propuesta para el mismo servicio dentro del rango definido
+    const existingProposal = await Proposal.findOne({
+      where: {
+        serviceId,
+        dateTime: {
+          [Op.between]: [twoHoursBefore, twoHoursAfter]
+        }
+      }
+    });
+
+    if (existingProposal) {
+      return res.status(400).send('Ya existe una propuesta para este servicio en ese rango de tiempo');
+    }
+
+    // Si no existe, se crea la propuesta
+    const proposal = await Proposal.create(req.body);
+    return res.status(201).json(proposal);
+  } catch (err) {
+    return res.status(500).send(err.message);
   }
 });
 
