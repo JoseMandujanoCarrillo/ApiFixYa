@@ -259,6 +259,8 @@ router.get('/:id', async (req, res) => {
  *   post:
  *     summary: Crear una nueva propuesta
  *     tags: [Proposals]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -272,15 +274,166 @@ router.get('/:id', async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Proposal'
+ *       400:
+ *         description: Error en la solicitud, propuesta duplicada.
  *       500:
  *         description: Error del servidor
  */
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
-    const newProposal = await Proposal.create(req.body);
-    res.status(201).json(newProposal);
+    const {
+      serviceId,
+      userId,
+      datetime,
+      direccion,
+      Descripcion,
+      UsuarioEnCasa,
+      servicioConstante,
+      tipodeservicio,
+      paymentMethod,
+      paymentReferenceId,
+    } = req.body;
+
+    if (!datetime) {
+      return res.status(400).json({ error: 'El campo datetime es requerido' });
+    }
+
+    // Convertir datetime a objeto Date
+    const inputDate = new Date(datetime);
+    // Definir el rango de 2 horas (120 minutos) antes y después
+    const lowerBound = new Date(inputDate.getTime() - 120 * 60 * 1000);
+    const upperBound = new Date(inputDate.getTime() + 120 * 60 * 1000);
+
+    // Verificar si ya existe una propuesta para el mismo serviceId, userId y dentro del rango de 2 horas,
+    // cuyo status no sea "finished"
+    const existingProposal = await Proposal.findOne({
+      where: {
+        serviceId,
+        userId,
+        datetime: { [Op.between]: [lowerBound, upperBound] },
+        status: { [Op.ne]: 'finished' }
+      }
+    });
+
+    if (existingProposal) {
+      return res.status(400).json({ 
+        error: 'Ya existe una propuesta para este servicio, usuario y fecha/hora (dentro de una diferencia de 2 horas)' 
+      });
+    }
+
+    const proposal = await Proposal.create({
+      serviceId,
+      userId,
+      datetime: inputDate,
+      direccion,
+      Descripcion,
+      UsuarioEnCasa,
+      servicioConstante,
+      tipodeservicio,
+      paymentMethod,
+      paymentReferenceId,
+      status: 'pending'
+    });
+
+    res.status(201).json(proposal);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /proposals/exists:
+ *   get:
+ *     summary: Verificar si existe una propuesta para un serviceId y datetime específicos
+ *     tags: [Proposals]
+ *     parameters:
+ *       - in: query
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del servicio asociado a la propuesta
+ *       - in: query
+ *         name: datetime
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Fecha y hora de la propuesta (en formato ISO 8601)
+ *     responses:
+ *       200:
+ *         description: Resultado de la verificación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 exists:
+ *                   type: boolean
+ *       400:
+ *         description: Parámetros faltantes o incorrectos
+ *       500:
+ *         description: Error del servidor
+ */
+router.get('/exists', async (req, res) => {
+  try {
+    let { serviceId, datetime } = req.query;
+
+    if (!serviceId || !datetime) {
+      return res.status(400).json({ error: 'Los parámetros serviceId y datetime son requeridos.' });
+    }
+
+    serviceId = parseInt(serviceId, 10);
+    if (isNaN(serviceId)) {
+      return res.status(400).json({ error: 'El parámetro serviceId debe ser un número válido.' });
+    }
+
+    const proposal = await Proposal.findOne({
+      where: {
+        serviceId,
+        datetime,
+        status: { [Op.ne]: 'finished' }
+      }
+    });
+    return res.json({ exists: !!proposal });
   } catch (err) {
     res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /proposals/my:
+ *   get:
+ *     summary: Obtener todas las propuestas del usuario autenticado
+ *     tags: [Proposals]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas del usuario autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 proposals:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Proposal'
+ *       401:
+ *         description: No autorizado.
+ *       500:
+ *         description: Error del servidor.
+ */
+router.get('/my', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const proposals = await Proposal.findAll({ where: { userId } });
+    res.json({ proposals });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -362,12 +515,10 @@ router.put('/:id/confirm', authenticate, async (req, res) => {
     const proposal = await Proposal.findByPk(req.params.id);
     if (!proposal) return res.status(404).send('Proposal not found');
 
-    // Verificar que el usuario autenticado sea el propietario de la propuesta
     if (proposal.userId !== req.user.id) {
       return res.status(403).send('No tienes permiso para confirmar esta propuesta');
     }
 
-    // Solo se permite confirmar si la propuesta está en estado "accepted"
     if (proposal.status !== 'accepted') {
       return res.status(400).send('La propuesta no está en un estado válido para confirmar');
     }
@@ -613,7 +764,6 @@ router.put('/:id/update-cleaner-finished', async (req, res) => {
  */
 router.get('/finished', async (req, res) => {
   try {
-    // Buscamos las propuestas cuyo status sea "finished"
     const proposals = await Proposal.findAll({
       where: { status: 'finished' },
       include: [{
@@ -624,7 +774,6 @@ router.get('/finished', async (req, res) => {
 
     const finishedCount = proposals.length;
 
-    // Mapeamos la respuesta para incluir el precio desde el modelo Service
     const proposalsResult = proposals.map(prop => ({
       id: prop.proposal_id,
       status: prop.status,
