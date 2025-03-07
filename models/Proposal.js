@@ -17,7 +17,7 @@ const Proposal = sequelize.define("Proposal", {
     "allowNull": false,
     "field": "user_id"
   },
-  "date": {
+  "datetime": {
     "type": DataTypes.DATE
   },
   "status": {
