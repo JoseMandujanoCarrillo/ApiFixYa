@@ -452,7 +452,7 @@ router.put('/:id/verify', async (req, res) => {
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
-    cleaner.is_verifiqued = is_verifiqued;
+    cleaner.is_verifiqued = is.verifiqued;
     await cleaner.save();
     res.json(cleaner);
   } catch (err) {
@@ -547,15 +547,20 @@ router.get('/:id/public', async (req, res) => {
  */
 router.get('/proposals/exists', async (req, res) => {
   try {
-    const { serviceId, date } = req.query;
+    let { serviceId, date } = req.query;
 
     if (!serviceId || !date) {
       return res.status(400).json({ error: 'Los parámetros serviceId y date son requeridos.' });
     }
 
+    // Validar que serviceId sea un número
+    serviceId = parseInt(serviceId, 10);
+    if (isNaN(serviceId)) {
+      return res.status(400).json({ error: 'El parámetro serviceId debe ser un número válido.' });
+    }
+
     // Buscar una propuesta que coincida con el serviceId y date proporcionados
     const proposal = await Proposal.findOne({ where: { serviceId, date } });
-
     return res.json({ exists: !!proposal });
   } catch (err) {
     res.status(500).send(err.message);
