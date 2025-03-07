@@ -5,7 +5,6 @@ const Cleaner = require('../models/Cleaner');
 const Service = require('../models/Service');
 const Proposal = require('../models/Proposal'); // Asegúrate de tener el modelo Proposal definido
 const { authenticate } = require('../middleware/auth');
-const { Op } = require('sequelize');
 const router = express.Router();
 
 const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave más segura
@@ -159,6 +158,7 @@ router.get('/exists', async (req, res) => {
     if (!email) {
       return res.status(400).json({ error: 'El parámetro email es requerido.' });
     }
+
     const cleaner = await Cleaner.findOne({ where: { email } });
     return res.json({ exists: !!cleaner });
   } catch (err) {
@@ -452,7 +452,7 @@ router.put('/:id/verify', async (req, res) => {
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
-    cleaner.is_verifiqued = is_verifiqued;
+    cleaner.is_verifiqued = is.verifiqued;
     await cleaner.save();
     res.json(cleaner);
   } catch (err) {
@@ -512,118 +512,9 @@ router.get('/:id/public', async (req, res) => {
 
 /**
  * @swagger
- * tags:
- *   name: Proposals
- *   description: Gestión de propuestas
- */
-
-/**
- * @swagger
- * /proposals:
- *   post:
- *     summary: Crear una propuesta
- *     tags: [Proposals]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               serviceId:
- *                 type: integer
- *               userId:
- *                 type: integer
- *               datetime:
- *                 type: string
- *                 format: date-time
- *                 description: Fecha y hora combinadas (ISO 8601)
- *               direccion:
- *                 type: string
- *               Descripcion:
- *                 type: string
- *               UsuarioEnCasa:
- *                 type: boolean
- *               servicioConstante:
- *                 type: boolean
- *               tipodeservicio:
- *                 type: string
- *               paymentMethod:
- *                 type: string
- *               paymentReferenceId:
- *                 type: string
- *     responses:
- *       201:
- *         description: Propuesta creada exitosamente.
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Proposal'
- *       400:
- *         description: Error en la solicitud.
- *       500:
- *         description: Error en el servidor.
- */
-router.post('/proposals', authenticate, async (req, res) => {
-  try {
-    const {
-      serviceId,
-      userId,
-      datetime,
-      direccion,
-      Descripcion,
-      UsuarioEnCasa,
-      servicioConstante,
-      tipodeservicio,
-      paymentMethod,
-      paymentReferenceId,
-    } = req.body;
-
-    if (!datetime) {
-      return res.status(400).json({ error: 'El campo datetime es requerido' });
-    }
-
-    // Verificar si ya existe una propuesta para el mismo serviceId y datetime
-    // cuyo status no sea "finished"
-    const existingProposal = await Proposal.findOne({
-      where: {
-        serviceId,
-        datetime,
-        status: { [Op.ne]: 'finished' }
-      }
-    });
-
-    if (existingProposal) {
-      return res.status(400).json({ error: 'Ya existe una propuesta para este servicio con la misma fecha y hora' });
-    }
-
-    const proposal = await Proposal.create({
-      serviceId,
-      userId,
-      datetime,
-      direccion,
-      Descripcion,
-      UsuarioEnCasa,
-      servicioConstante,
-      tipodeservicio,
-      paymentMethod,
-      paymentReferenceId,
-      status: 'pending'
-    });
-
-    res.status(201).json(proposal);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * @swagger
  * /proposals/exists:
  *   get:
- *     summary: Verificar si existe una propuesta para un serviceId y datetime específicos
+ *     summary: Verificar si existen propuestas con el mismo serviceId y date
  *     tags: [Proposals]
  *     parameters:
  *       - in: query
@@ -633,12 +524,12 @@ router.post('/proposals', authenticate, async (req, res) => {
  *           type: integer
  *         description: ID del servicio asociado a la propuesta
  *       - in: query
- *         name: datetime
+ *         name: date
  *         required: true
  *         schema:
  *           type: string
- *           format: date-time
- *         description: Fecha y hora de la propuesta (en formato ISO 8601)
+ *           format: date
+ *         description: "Fecha de la propuesta (ejemplo: 2025-03-06)"
  *     responses:
  *       200:
  *         description: Resultado de la verificación
@@ -656,63 +547,23 @@ router.post('/proposals', authenticate, async (req, res) => {
  */
 router.get('/proposals/exists', async (req, res) => {
   try {
-    let { serviceId, datetime } = req.query;
+    let { serviceId, date } = req.query;
 
-    if (!serviceId || !datetime) {
-      return res.status(400).json({ error: 'Los parámetros serviceId y datetime son requeridos.' });
+    if (!serviceId || !date) {
+      return res.status(400).json({ error: 'Los parámetros serviceId y date son requeridos.' });
     }
 
+    // Validar que serviceId sea un número
     serviceId = parseInt(serviceId, 10);
     if (isNaN(serviceId)) {
       return res.status(400).json({ error: 'El parámetro serviceId debe ser un número válido.' });
     }
 
-    const proposal = await Proposal.findOne({
-      where: {
-        serviceId,
-        datetime,
-        status: { [Op.ne]: 'finished' }
-      }
-    });
+    // Buscar una propuesta que coincida con el serviceId y date proporcionados
+    const proposal = await Proposal.findOne({ where: { serviceId, date } });
     return res.json({ exists: !!proposal });
   } catch (err) {
     res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /proposals/my:
- *   get:
- *     summary: Obtener todas las propuestas del usuario autenticado
- *     tags: [Proposals]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Lista de propuestas.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 proposals:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Proposal'
- *       401:
- *         description: No autorizado.
- *       500:
- *         description: Error en el servidor.
- */
-router.get('/proposals/my', authenticate, async (req, res) => {
-  try {
-    // Se asume que el token incluye la propiedad userId
-    const userId = req.user.userId;
-    const proposals = await Proposal.findAll({ where: { userId } });
-    res.json({ proposals });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 });
 
