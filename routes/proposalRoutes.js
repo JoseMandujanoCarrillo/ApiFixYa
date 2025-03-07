@@ -736,18 +736,11 @@ router.put('/:id/update-cleaner-finished', async (req, res) => {
  * @swagger
  * /proposals/finished:
  *   get:
- *     summary: Obtener las propuestas con estado "finished" y sus precios para un cleaner específico
+ *     summary: Obtener las propuestas con estado "finished" y sus precios
  *     tags: [Proposals]
- *     parameters:
- *       - in: query
- *         name: cleanerId
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID del cleaner para filtrar las propuestas terminadas.
  *     responses:
  *       200:
- *         description: Lista de propuestas con estado finished y sus precios para el cleaner especificado.
+ *         description: Lista de propuestas con estado finished y sus precios
  *         content:
  *           application/json:
  *             schema:
@@ -766,32 +759,21 @@ router.put('/:id/update-cleaner-finished', async (req, res) => {
  *                         type: string
  *                       price:
  *                         type: number
- *       400:
- *         description: cleanerId is required or invalid.
  *       500:
  *         description: Error del servidor
  */
 router.get('/finished', async (req, res) => {
   try {
-    const { cleanerId } = req.query;
-    if (!cleanerId) {
-      return res.status(400).send('cleanerId is required');
-    }
-    const parsedCleanerId = parseInt(cleanerId, 10);
-    if (isNaN(parsedCleanerId)) {
-      return res.status(400).send('cleanerId must be a valid number');
-    }
-
     const proposals = await Proposal.findAll({
       where: { status: 'finished' },
       include: [{
         model: Service,
-        attributes: ['price'],
-        where: { cleanerId: parsedCleanerId }
+        attributes: ['price']
       }]
     });
 
     const finishedCount = proposals.length;
+
     const proposalsResult = proposals.map(prop => ({
       id: prop.proposal_id,
       status: prop.status,
