@@ -529,7 +529,7 @@ router.get('/:id/public', async (req, res) => {
  *         schema:
  *           type: string
  *           format: date
- *         description: Fecha de la propuesta (ejemplo: 2025-03-06)
+ *         description: "Fecha de la propuesta (ejemplo: 2025-03-06)"
  *     responses:
  *       200:
  *         description: Resultado de la verificación
