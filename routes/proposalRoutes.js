@@ -34,6 +34,23 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Lista de propuestas realizadas por el usuario autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalItems:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 proposals:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Proposal'
+ *       500:
+ *         description: Error del servidor
  */
 router.get('/my', authenticate, async (req, res) => {
   const { page = 1, size = 10 } = req.query;
@@ -79,6 +96,23 @@ router.get('/my', authenticate, async (req, res) => {
  *     responses:
  *       200:
  *         description: Lista de todas las propuestas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalItems:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 proposals:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Proposal'
+ *       500:
+ *         description: Error del servidor
  */
 router.get('/', async (req, res) => {
   const { page = 1, size = 10 } = req.query;
@@ -114,8 +148,16 @@ router.get('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Lista de propuestas para el servicio especificado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Proposal'
  *       404:
  *         description: No se encontraron propuestas para el servicio
+ *       500:
+ *         description: Error del servidor
  */
 router.get('/service/:serviceId', async (req, res) => {
   try {
@@ -149,6 +191,8 @@ router.get('/service/:serviceId', async (req, res) => {
  *                 $ref: '#/components/schemas/Proposal'
  *       404:
  *         description: No se encontraron servicios o propuestas para el limpiador
+ *       500:
+ *         description: Error del servidor
  */
 router.get('/for-cleaner', authenticate, async (req, res) => {
   try {
@@ -190,8 +234,14 @@ router.get('/for-cleaner', authenticate, async (req, res) => {
  *     responses:
  *       200:
  *         description: Propuesta encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Proposal'
  *       404:
  *         description: Propuesta no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 router.get('/:id', async (req, res) => {
   try {
@@ -218,6 +268,10 @@ router.get('/:id', async (req, res) => {
  *     responses:
  *       201:
  *         description: Propuesta creada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Proposal'
  *       500:
  *         description: Error del servidor
  */
@@ -252,6 +306,10 @@ router.post('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Propuesta actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Proposal'
  *       404:
  *         description: Propuesta no encontrada
  *       500:
@@ -286,6 +344,10 @@ router.put('/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: Propuesta actualizada a in_progress
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Proposal'
  *       400:
  *         description: La propuesta no está en un estado válido para confirmar
  *       403:
@@ -310,7 +372,6 @@ router.put('/:id/confirm', authenticate, async (req, res) => {
       return res.status(400).send('La propuesta no está en un estado válido para confirmar');
     }
 
-    // Actualiza el estado a "in_progress"
     proposal.status = 'in_progress';
     await proposal.save();
     res.json(proposal);
@@ -565,7 +626,7 @@ router.get('/finished', async (req, res) => {
 
     // Mapeamos la respuesta para incluir el precio desde el modelo Service
     const proposalsResult = proposals.map(prop => ({
-      id: prop.id,
+      id: prop.proposal_id,
       status: prop.status,
       price: prop.Service ? prop.Service.price : null
     }));
