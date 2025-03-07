@@ -5,54 +5,100 @@ const sequelize = require('../config/database');
  * @swagger
  * components:
  *   schemas:
- *     Cleaner:
+ *     Proposal:
  *       type: object
  *       properties:
- *         cleaner_id:
+ *         proposal_id:
  *           type: integer
- *           description: ID del limpiador
- *         name:
+ *           description: ID de la propuesta
+ *         serviceId:
+ *           type: integer
+ *           description: ID del servicio
+ *         userId:
+ *           type: integer
+ *           description: ID del usuario que crea la propuesta
+ *         datetime:
  *           type: string
- *           description: Nombre del limpiador
- *         email:
+ *           format: date-time
+ *           description: Fecha y hora combinadas de la propuesta (en formato ISO 8601)
+ *         status:
  *           type: string
- *           description: Correo electrónico del limpiador
- *         password:
+ *           description: Estado de la propuesta (e.g., pending, finished)
+ *         direccion:
  *           type: string
- *           description: Contraseña del limpiador
- *         latitude:
- *           type: number
- *           format: float
- *           description: Latitud del limpiador
- *         longitude:
- *           type: number
- *           format: float
- *           description: Longitud del limpiador
- *         is_verifiqued:
+ *           description: Dirección asociada a la propuesta
+ *         Descripcion:
+ *           type: string
+ *           description: Descripción adicional
+ *         UsuarioEnCasa:
  *           type: boolean
- *           description: Indica si el limpiador ha sido verificado
- *         auditor_id:
- *           type: integer
- *           description: ID del auditor asignado
- *         imageurl:
+ *           description: Indica si el usuario estará en casa
+ *         servicioConstante:
+ *           type: boolean
+ *           description: Indica si es un servicio constante
+ *         tipodeservicio:
  *           type: string
- *           description: URL de la imagen del limpiador
+ *           description: Tipo de servicio
+ *         paymentMethod:
+ *           type: string
+ *           description: Método de pago utilizado
+ *         paymentReferenceId:
+ *           type: string
+ *           description: Referencia del pago
  */
-const Cleaner = sequelize.define('Cleaner', {
-  cleaner_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  name: { type: DataTypes.STRING, allowNull: false },
-  email: { type: DataTypes.STRING, allowNull: false, unique: true },
-  password: { type: DataTypes.STRING, allowNull: false },
-  latitude: { type: DataTypes.FLOAT },
-  longitude: { type: DataTypes.FLOAT },
-  is_verifiqued: { type: DataTypes.BOOLEAN, defaultValue: false },
-  auditor_id: { type: DataTypes.INTEGER, allowNull: true },
-  imageurl: { type: DataTypes.TEXT, allowNull: true }
+const Proposal = sequelize.define('Proposal', {
+  proposal_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  serviceId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  // Se usa "datetime" sin mapearlo a otro nombre en la DB
+  datetime: {
+    type: DataTypes.DATE,
+    allowNull: false
+  },
+  status: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'pending'
+  },
+  direccion: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  Descripcion: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  UsuarioEnCasa: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true
+  },
+  servicioConstante: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true
+  },
+  tipodeservicio: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  paymentMethod: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  paymentReferenceId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  }
 }, {
-  tableName: 'Cleaners',
+  tableName: 'Proposals',
   timestamps: true,
   createdAt: 'created_at',
-  updatedAt: 'updated_at',
+  updatedAt: 'updated_at'
 });
 
-module.exports = Cleaner;
+module.exports = Proposal;
