@@ -1,30 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const Chat = require('../models/Chat');
+const { Chat, Cleaner, User } = require('../models');
+const authMiddleware = require('../middleware/authMiddleware'); // Middleware de autenticación
 
 /**
  * @swagger
- * tags:
- *   name: Chats
- *   description: Endpoints para gestionar chats y mensajes
- */
-
-/**
- * @swagger
- * /api/chats/contacts:
+ * /chats:
  *   get:
- *     summary: Obtiene los usuarios con los que hay mensajes (para un limpiador específico)
+ *     summary: Obtener todos los chats del usuario con los limpiadores (nombre y foto)
  *     tags: [Chats]
- *     parameters:
- *       - in: query
- *         name: cleanerId
- *         schema:
- *           type: integer
- *         required: true
- *         description: ID del limpiador
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de contactos (userId)
+ *         description: Lista de limpiadores con los que el usuario ha chateado
  *         content:
  *           application/json:
  *             schema:
@@ -32,117 +21,495 @@ const Chat = require('../models/Chat');
  *               items:
  *                 type: object
  *                 properties:
- *                   userId:
+ *                   id:
  *                     type: integer
- *       400:
- *         description: El parámetro cleanerId es requerido
+ *                   name:
+ *                     type: string
+ *                   imageurl:
+ *                     type: string
+ *       401:
+ *         description: No autenticado
  *       500:
- *         description: Error al obtener los contactos
+ *         description: Error en el servidor
  */
-router.get('/contacts', async (req, res) => {
+router.get('/chats', authMiddleware, async (req, res) => {
   try {
-    const { cleanerId } = req.query;
-    if (!cleanerId) {
-      return res.status(400).json({ error: 'El parámetro cleanerId es requerido' });
-    }
-    const contacts = await Chat.findAll({
-      attributes: ['userId'],
-      where: { cleanerId },
-      group: ['userId']
+    // Obtener IDs únicos de limpiadores con los que el usuario ha chateado
+    const cleanerIds = await Chat.findAll({
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('cleanerId')), 'cleanerId']],
+      where: { userId: req.user.id } // Asumiendo que el middleware de autenticación establece req.user
     });
-    res.json(contacts);
+
+    // Extraer los IDs de los resultados
+    const ids = cleanerIds.map(c => c.cleanerId);
+
+    // Si no hay limpiadores, retornar array vacío
+    if (ids.length === 0) return res.json([]);
+
+    // Obtener detalles de los limpiadores
+    const cleaners = await Cleaner.findAll({
+      where: { cleaner_id: ids },
+      attributes: [
+        [sequelize.col('cleaner_id'), 'id'], // Mapear 'cleaner_id' a 'id'
+        'name',
+        'imageurl'
+      ]
+    });
+
+    res.json(cleaners);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al obtener los contactos' });
+    res.status(500).send(error.message);
   }
 });
 
 /**
  * @swagger
- * /api/chats:
- *   post:
- *     summary: Envía un mensaje
+ * /chats/{cleanerId}:
+ *   get:
+ *     summary: Obtener mensajes con un limpiador específico
  *     tags: [Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cleanerId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del limpiador
+ *     responses:
+ *       200:
+ *         description: Mensajes con el limpiador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 cleaner:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     name:
+ *                       type: string
+ *                     imageurl:
+ *                       type: string
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       message:
+ *                         type: string
+ *                       sender:
+ *                         type: string
+ *                         enum: ['user', 'cleaner']
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *       404:
+ *         description: Limpiador no encontrado o sin mensajes
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/chats/:cleanerId', authMiddleware, async (req, res) => {
+  try {
+    const { cleanerId } = req.params;
+    const userId = req.user.id;
+
+    // Verificar existencia del limpiador
+    const cleaner = await Cleaner.findOne({
+      where: { cleaner_id: cleanerId },
+      attributes: [
+        [sequelize.col('cleaner_id'), 'id'],
+        'name',
+        'imageurl'
+      ]
+    });
+
+    if (!cleaner) {
+      return res.status(404).json({ error: 'Limpiador no encontrado' });
+    }
+
+    // Obtener mensajes entre el usuario y el limpiador
+    const messages = await Chat.findAll({
+      where: {
+        userId: userId,
+        cleanerId: cleanerId
+      },
+      attributes: ['id', 'message', 'sender', 'createdAt'],
+      order: [['createdAt', 'ASC']]
+    });
+
+    res.json({
+      cleaner: {
+        id: cleaner.id,
+        name: cleaner.name,
+        imageurl: cleaner.imageurl
+      },
+      messages: messages.map(msg => ({
+        id: msg.id,
+        message: msg.message,
+        sender: msg.sender,
+        createdAt: msg.createdAt
+      }))
+    });
+
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+/**
+ * @swagger
+ * /chats/{recipientId}/messages:
+ *   post:
+ *     summary: Enviar un mensaje a un limpiador o usuario
+ *     tags: [Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: recipientId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del destinatario (limpiador o usuario)
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - userId
- *               - cleanerId
- *               - message
- *               - sender
  *             properties:
- *               userId:
- *                 type: integer
- *               cleanerId:
- *                 type: integer
  *               message:
  *                 type: string
- *               sender:
- *                 type: string
- *                 enum: [user, cleaner]
+ *                 description: Contenido del mensaje
  *     responses:
  *       201:
- *         description: Mensaje enviado exitosamente
+ *         description: Mensaje creado exitosamente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Chat'
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 message:
+ *                   type: string
+ *                 sender:
+ *                   type: string
+ *                   enum: ['user', 'cleaner']
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
  *       400:
- *         description: Todos los campos son obligatorios: userId, cleanerId, message, sender
+ *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Destinatario no encontrado
  *       500:
- *         description: Error al enviar el mensaje
+ *         description: Error en el servidor
  */
-router.post('/', async (req, res) => {
+router.post('/chats/:recipientId/messages', authMiddleware, async (req, res) => {
   try {
-    const { userId, cleanerId, message, sender } = req.body;
-    if (!userId || !cleanerId || !message || !sender) {
-      return res.status(400).json({ error: 'Todos los campos son obligatorios: userId, cleanerId, message, sender' });
+    const { recipientId } = req.params;
+    const { message } = req.body;
+    const { role, id: senderId } = req.user;
+
+    // Validar contenido del mensaje
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
     }
-    const chat = await Chat.create({ userId, cleanerId, message, sender });
-    res.status(201).json(chat);
+
+    let userId, cleanerId, senderType;
+
+    if (role === 'user') {
+      // Usuario enviando a limpiador
+      userId = senderId;
+      cleanerId = recipientId;
+      senderType = 'user';
+
+      // Verificar existencia del limpiador
+      const cleanerExists = await Cleaner.findOne({
+        where: { cleaner_id: recipientId }
+      });
+      if (!cleanerExists) {
+        return res.status(404).json({ error: 'Limpiador no encontrado' });
+      }
+
+    } else if (role === 'cleaner') {
+      // Limpiador respondiendo a usuario
+      userId = recipientId;
+      cleanerId = senderId;
+      senderType = 'cleaner';
+
+      // Verificar existencia del usuario
+      const userExists = await User.findOne({
+        where: { id: recipientId }
+      });
+      if (!userExists) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+    } else {
+      return res.status(403).json({ error: 'Rol de usuario no válido' });
+    }
+
+    // Crear el mensaje
+    const newMessage = await Chat.create({
+      userId,
+      cleanerId,
+      message,
+      sender: senderType
+    });
+
+    res.status(201).json({
+      id: newMessage.id,
+      message: newMessage.message,
+      sender: newMessage.sender,
+      createdAt: newMessage.createdAt
+    });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al enviar el mensaje' });
+    res.status(500).send(error.message);
   }
 });
 
+
+
+// 1. Obtener todos los chats de un limpiador con usuarios
 /**
  * @swagger
- * /api/chats/{id}:
- *   delete:
- *     summary: Borra un mensaje por su ID
- *     tags: [Chats]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: integer
- *         required: true
- *         description: ID del mensaje a borrar
+ * /cleaner/chats:
+ *   get:
+ *     summary: Obtener todos los usuarios con los que el limpiador ha chateado
+ *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Mensaje borrado exitosamente
- *       404:
- *         description: Mensaje no encontrado
+ *         description: Lista de usuarios
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   name:
+ *                     type: string
+ *                   imageurl:
+ *                     type: string
+ *       401:
+ *         description: No autenticado
  *       500:
- *         description: Error al borrar el mensaje
+ *         description: Error en el servidor
  */
-router.delete('/:id', async (req, res) => {
+router.get('/cleaner/chats', authMiddleware, async (req, res) => {
   try {
-    const { id } = req.params;
-    const chat = await Chat.findByPk(id);
-    if (!chat) {
-      return res.status(404).json({ error: 'Mensaje no encontrado' });
-    }
-    await chat.destroy();
-    res.json({ message: 'Mensaje borrado exitosamente' });
+    const cleanerId = req.user.id;
+
+    // Obtener IDs únicos de usuarios
+    const userIds = await Chat.findAll({
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('userId')), 'userId']],
+      where: { cleanerId }
+    });
+
+    const ids = userIds.map(u => u.userId);
+    if (ids.length === 0) return res.json([]);
+
+    // Obtener detalles de los usuarios
+    const users = await User.findAll({
+      where: { id: ids },
+      attributes: ['id', 'name', 'imageurl']
+    });
+
+    res.json(users);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al borrar el mensaje' });
+    res.status(500).send(error.message);
+  }
+});
+
+// 2. Ver mensajes con un usuario específico
+/**
+ * @swagger
+ * /cleaner/chats/{userId}:
+ *   get:
+ *     summary: Obtener mensajes con un usuario específico
+ *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Mensajes con el usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     name:
+ *                       type: string
+ *                     imageurl:
+ *                       type: string
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       message:
+ *                         type: string
+ *                       sender:
+ *                         type: string
+ *                         enum: ['user', 'cleaner']
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/cleaner/chats/:userId', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const cleanerId = req.user.id;
+
+    // Verificar existencia del usuario
+    const user = await User.findOne({
+      where: { id: userId },
+      attributes: ['id', 'name', 'imageurl']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Obtener mensajes
+    const messages = await Chat.findAll({
+      where: { userId, cleanerId },
+      attributes: ['id', 'message', 'sender', 'createdAt'],
+      order: [['createdAt', 'ASC']]
+    });
+
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        imageurl: user.imageurl
+      },
+      messages: messages.map(msg => ({
+        id: msg.id,
+        message: msg.message,
+        sender: msg.sender,
+        createdAt: msg.createdAt
+      }))
+    });
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+// 3. Enviar mensaje a un usuario
+/**
+ * @swagger
+ * /cleaner/chats/{userId}/messages:
+ *   post:
+ *     summary: Enviar mensaje a un usuario
+ *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Mensaje creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 message:
+ *                   type: string
+ *                 sender:
+ *                   type: string
+ *                   enum: ['cleaner']
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.post('/cleaner/chats/:userId/messages', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { message } = req.body;
+    const cleanerId = req.user.id;
+
+    // Validar mensaje
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Mensaje vacío' });
+    }
+
+    // Verificar existencia del usuario
+    const userExists = await User.findOne({ where: { id: userId } });
+    if (!userExists) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Crear mensaje
+    const newMessage = await Chat.create({
+      userId,
+      cleanerId,
+      message,
+      sender: 'cleaner'
+    });
+
+    res.status(201).json({
+      id: newMessage.id,
+      message: newMessage.message,
+      sender: newMessage.sender,
+      createdAt: newMessage.createdAt
+    });
+  } catch (error) {
+    res.status(500).send(error.message);
   }
 });
 

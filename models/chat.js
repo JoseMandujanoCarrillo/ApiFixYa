@@ -28,7 +28,7 @@ const Chat = sequelize.define('Chat', {
   // Contenido del mensaje
   message: {
     type: DataTypes.TEXT,
-    allowNull: false,
+    allowNull: true,
   },
   // Campo para identificar quién envía el mensaje, puede ser 'user' o 'cleaner'
   sender: {

@@ -405,15 +405,23 @@ router.delete('/notifications/:proposalId', authenticate, async (req, res) => {
  *                   imageUrl:
  *                     type: string
  */
-router.get('/name-photo', async (req, res) => {
+// Nuevo endpoint público para obtener nombre e imagen por ID
+router.get('/:id/name-photo', async (req, res) => {
   try {
-    const users = await User.findAll({
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) return res.status(400).send('Invalid user ID');
+
+    const user = await User.findByPk(userId, {
       attributes: ['name', 'imageUrl']
     });
-    res.json(users);
+
+    if (!user) return res.status(404).send('User not found');
+
+    res.json(user);
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
+
 
 module.exports = router;
