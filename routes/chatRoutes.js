@@ -1,65 +1,117 @@
 const express = require('express');
-const Proposal = require('../models/Proposal');
-const Service = require('../models/Service'); // Asegúrate de importar el modelo Service
-const Cleaner = require('../models/Cleaner'); // Asegúrate de importar el modelo Cleaner
-const { authenticate } = require('../middleware/auth');
 const router = express.Router();
+const {
+  handleSuccess,
+  handleFailure,
+  handlePending,
+} = require('../controllers/mercadopagoController');
 
 /**
  * @swagger
- * /proposals/cleaners-with-chats:
+ * /mercadopago/success:
  *   get:
- *     summary: Obtener limpiadores con los que el usuario ha interactuado (vía propuestas)
- *     tags: [Proposals]
- *     security:
- *       - bearerAuth: []
+ *     summary: Procesa un pago exitoso
+ *     description: Endpoint para procesar la respuesta de un pago exitoso de Mercado Pago.
+ *     parameters:
+ *       - in: query
+ *         name: payment_id
+ *         schema:
+ *           type: string
+ *         description: ID del pago proporcionado por Mercado Pago.
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Estado del pago (por defecto 'approved').
+ *       - in: query
+ *         name: merchant_order_id
+ *         schema:
+ *           type: string
+ *         description: ID de la orden del comerciante.
+ *       - in: query
+ *         name: preference_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID de la preferencia de Mercado Pago.
  *     responses:
  *       200:
- *         description: Lista de limpiadores con id, nombre y foto
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   cleaner_id:
- *                     type: integer
- *                   name:
- *                     type: string
- *                   imageurl:
- *                     type: string
+ *         description: Pago exitoso procesado correctamente.
  *       500:
- *         description: Error del servidor
+ *         description: Error al procesar el pago.
  */
-router.get('/cleaners-with-chats', authenticate, async (req, res) => {
-  try {
-    const userId = req.user.id;
+router.get('/success', handleSuccess);
 
-    // Obtener todos los serviceIds asociados a las propuestas del usuario
-    const proposals = await Proposal.findAll({
-      where: { userId },
-      attributes: ['serviceId'],
-      raw: true,
-    });
+/**
+ * @swagger
+ * /mercadopago/failure:
+ *   get:
+ *     summary: Procesa un pago fallido
+ *     description: Endpoint para procesar la respuesta de un pago fallido de Mercado Pago.
+ *     parameters:
+ *       - in: query
+ *         name: payment_id
+ *         schema:
+ *           type: string
+ *         description: ID del pago proporcionado por Mercado Pago.
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Estado del pago (por defecto 'failure').
+ *       - in: query
+ *         name: merchant_order_id
+ *         schema:
+ *           type: string
+ *         description: ID de la orden del comerciante.
+ *       - in: query
+ *         name: preference_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID de la preferencia de Mercado Pago.
+ *     responses:
+ *       200:
+ *         description: Pago fallido procesado correctamente.
+ *       500:
+ *         description: Error al procesar el pago.
+ */
+router.get('/failure', handleFailure);
 
-    const serviceIds = proposals.map(p => p.serviceId);
-
-    // Obtener los cleaners asociados a esos serviceIds (evitando duplicados)
-    const cleaners = await Cleaner.findAll({
-      include: [{
-        model: Service,
-        where: { id: serviceIds },
-        attributes: [],
-      }],
-      attributes: ['cleaner_id', 'name', 'imageurl'],
-      distinct: true, // Evita duplicados
-    });
-
-    res.json(cleaners);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
+/**
+ * @swagger
+ * /mercadopago/pending:
+ *   get:
+ *     summary: Procesa un pago pendiente
+ *     description: Endpoint para procesar la respuesta de un pago pendiente de Mercado Pago.
+ *     parameters:
+ *       - in: query
+ *         name: payment_id
+ *         schema:
+ *           type: string
+ *         description: ID del pago proporcionado por Mercado Pago.
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Estado del pago (por defecto 'pending').
+ *       - in: query
+ *         name: merchant_order_id
+ *         schema:
+ *           type: string
+ *         description: ID de la orden del comerciante.
+ *       - in: query
+ *         name: preference_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID de la preferencia de Mercado Pago.
+ *     responses:
+ *       200:
+ *         description: Pago pendiente procesado correctamente.
+ *       500:
+ *         description: Error al procesar el pago.
+ */
+router.get('/pending', handlePending);
 
 module.exports = router;
