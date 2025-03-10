@@ -70,8 +70,7 @@ router.post('/message', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid user authentication data.' });
     }
 
-    // Asumimos que el chat es entre un usuario y un limpiador, por lo que el tipo de
-    // interlocutor es el opuesto al del usuario autenticado.
+    // Asumimos que el chat es entre un usuario y un limpiador, por lo que el tipo de interlocutor es el opuesto
     const partnerType = currentType === 'user' ? 'cleaner' : 'user';
 
     // Crear el mensaje de chat
@@ -189,6 +188,102 @@ router.get('/contacts', authenticate, async (req, res) => {
     }
 
     res.json(contacts);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /chat/messages:
+ *   get:
+ *     summary: Obtener los mensajes previos entre el usuario autenticado y un contacto
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: partnerId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario o limpiador con el que se desea ver el chat
+ *     responses:
+ *       200:
+ *         description: Lista de mensajes del chat ordenados por fecha ascendente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   sender:
+ *                     type: string
+ *                     description: "\"self\" si el mensaje fue enviado por el usuario autenticado o \"partner\" en caso contrario."
+ *                   text:
+ *                     type: string
+ *                   createdAt:
+ *                     type: string
+ *                     format: date-time
+ *       400:
+ *         description: Parámetros inválidos
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/messages', authenticate, async (req, res) => {
+  try {
+    const partnerId = parseInt(req.query.partnerId);
+    if (!partnerId) {
+      return res.status(400).json({ error: 'El parámetro partnerId es requerido y debe ser un número válido.' });
+    }
+
+    // Determinar el tipo y ID del usuario autenticado
+    let currentType, currentId;
+    if (req.user.id) {
+      currentType = 'user';
+      currentId = req.user.id;
+    } else if (req.user.cleaner_id) {
+      currentType = 'cleaner';
+      currentId = req.user.cleaner_id;
+    } else {
+      return res.status(400).json({ error: 'Datos de autenticación inválidos.' });
+    }
+
+    // Se asume que el chat es entre un usuario y un limpiador, por lo tanto el tipo de contacto es el opuesto
+    const partnerType = currentType === 'user' ? 'cleaner' : 'user';
+
+    // Buscar todos los mensajes en donde el usuario autenticado y el contacto sean emisor y receptor de manera inversa
+    const messages = await Chat.findAll({
+      where: {
+        [Op.or]: [
+          {
+            senderId: currentId,
+            senderType: currentType,
+            receiverId: partnerId,
+            receiverType: partnerType
+          },
+          {
+            senderId: partnerId,
+            senderType: partnerType,
+            receiverId: currentId,
+            receiverType: currentType
+          }
+        ]
+      },
+      order: [['createdAt', 'ASC']]
+    });
+
+    // Mapear los mensajes para indicar si fueron enviados por el usuario autenticado o por el contacto
+    const formattedMessages = messages.map(msg => {
+      return {
+        sender: (msg.senderId === currentId && msg.senderType === currentType) ? 'self' : 'partner',
+        text: msg.message,
+        createdAt: msg.createdAt
+      };
+    });
+
+    res.json(formattedMessages);
   } catch (err) {
     res.status(500).send(err.message);
   }
