@@ -29,7 +29,7 @@ const { authenticate } = require('../middleware/auth'); // Importa la función d
  *                     type: integer
  *                   name:
  *                     type: string
- *                   imageurl:
+ *                   imageUrl:
  *                     type: string
  *       401:
  *         description: "No autenticado"
@@ -58,7 +58,7 @@ router.get('/', authenticate, async (req, res) => {
       attributes: [
         [sequelize.col('cleaner_id'), 'id'], // Mapear 'cleaner_id' a 'id'
         'name',
-        'imageurl'
+        'imageUrl'
       ]
     });
 
@@ -331,7 +331,7 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
     // Obtener detalles de los usuarios
     const users = await User.findAll({
       where: { id: ids },
-      attributes: ['id', 'name', 'imageurl']
+      attributes: ['id', 'name', 'imageUrl']
     });
 
     res.json(users);
@@ -370,7 +370,7 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *                       type: integer
  *                     name:
  *                       type: string
- *                     imageurl:
+ *                     imageUrl:
  *                       type: string
  *                 messages:
  *                   type: array
@@ -402,7 +402,7 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
     // Verificar existencia del usuario
     const user = await User.findOne({
       where: { id: userId },
-      attributes: ['id', 'name', 'imageurl']
+      attributes: ['id', 'name', 'imageUrl']
     });
 
     if (!user) {
@@ -420,7 +420,7 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        imageurl: user.imageurl
+        imageUrl: user.imageUrl
       },
       messages: messages.map(msg => ({
         id: msg.id,
