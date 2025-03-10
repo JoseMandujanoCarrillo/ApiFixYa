@@ -5,6 +5,7 @@ const cleanerRoutes = require('./routes/cleanerRoutes');
 const proposalRoutes = require('./routes/proposalRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const userRoutes = require('./routes/userRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const creditCardRoutes = require('./routes/CreditCardRoutes');
 const auditorRoutes = require('./routes/auditorRoutes');
 const mercadopagoRoutes = require('./routes/mercadopago');
@@ -29,6 +30,7 @@ app.use('/cleaners', cleanerRoutes);
 app.use('/proposals', proposalRoutes);
 app.use('/services', serviceRoutes);
 app.use('/users', userRoutes);
+app.use('/chats', chatRoutes);
 app.use('/creditcards', creditCardRoutes);
 app.use('/auditors', auditorRoutes);
 app.use('/mercadopago', mercadopagoRoutes); // Se añade la ruta de Mercado Pago
