@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { Chat, Cleaner, User } = require('../models');
+const Cleaner = require('../models/Cleaner');
 const authMiddleware = require('../middleware/authMiddleware'); // Middleware de autenticación
-
+const Chat = require('../models/chat');
+const User = require('../models/User');
 /**
  * @swagger
  * /chats:
