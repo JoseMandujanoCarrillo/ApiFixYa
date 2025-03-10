@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Cleaner = require('../models/Cleaner');
-const authMiddleware = require('../middleware/authMiddleware'); // Middleware de autenticación
+const authMiddleware = require('../middleware/auth'); // Middleware de autenticación
 const Chat = require('../models/chat');
 const User = require('../models/User');
 /**
