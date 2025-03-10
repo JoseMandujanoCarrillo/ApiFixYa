@@ -2,7 +2,6 @@ const express = require('express');
 const { Op } = require('sequelize');
 const Proposal = require('../models/Proposal');
 const Service = require('../models/Service'); // Se asume la relación: Proposal.belongsTo(Service, { foreignKey: 'serviceId' });
-const Conversation = require('../models/Conversation'); // Modelo para gestionar conversaciones (chats)
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -442,9 +441,7 @@ router.get('/my', authenticate, async (req, res) => {
  * @swagger
  * /proposals/{id}:
  *   put:
- *     summary: Actualizar una propuesta por ID.
- *              Si la actualización cambia el estado a "accepted" y no lo era previamente,
- *              se crea automáticamente una conversación entre el usuario y el limpiador del servicio.
+ *     summary: Actualizar una propuesta por ID
  *     tags: [Proposals]
  *     parameters:
  *       - in: path
@@ -475,35 +472,7 @@ router.put('/:id', async (req, res) => {
   try {
     const foundProposal = await Proposal.findByPk(req.params.id);
     if (!foundProposal) return res.status(404).send('Proposal not found');
-
-    // Guardar el estado anterior para detectar el cambio a "accepted"
-    const previousStatus = foundProposal.status;
-
-    // Actualizar la propuesta con los datos recibidos
     await foundProposal.update(req.body);
-
-    // Si el nuevo estado es "accepted" y antes no lo era, crear la conversación
-    if (req.body.status === 'accepted' && previousStatus !== 'accepted') {
-      // Obtener el servicio asociado para extraer el cleanerId
-      const service = await Service.findByPk(foundProposal.serviceId);
-      if (service) {
-        // Evitar duplicados: verificar si ya existe una conversación
-        let conversation = await Conversation.findOne({
-          where: {
-            user_id: foundProposal.userId,
-            cleaner_id: service.cleanerId
-          }
-        });
-        if (!conversation) {
-          conversation = await Conversation.create({
-            user_id: foundProposal.userId,
-            cleaner_id: service.cleanerId
-          });
-          console.log('Conversación creada automáticamente.');
-        }
-      }
-    }
-
     res.json(foundProposal);
   } catch (err) {
     res.status(500).send(err.message);
