@@ -29,7 +29,7 @@ const { authenticate } = require('../middleware/auth'); // Importa la función d
  *                     type: integer
  *                   name:
  *                     type: string
- *                   imageUrl:
+ *                   imageurl:
  *                     type: string
  *       401:
  *         description: "No autenticado"
@@ -58,7 +58,7 @@ router.get('/', authenticate, async (req, res) => {
       attributes: [
         [sequelize.col('cleaner_id'), 'id'], // Mapear 'cleaner_id' a 'id'
         'name',
-        'imageUrl'
+        'imageurl'
       ]
     });
 
@@ -305,7 +305,7 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
  *                     type: integer
  *                   name:
  *                     type: string
- *                   imageurl:
+ *                   imageUrl:
  *                     type: string
  *       401:
  *         description: "No autenticado"
