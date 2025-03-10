@@ -1,22 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const sequelize = require('../config/database'); // Importa la instancia de Sequelize
+const sequelize = require('../config/database'); // Asegúrate de exportar la instancia de Sequelize
 const Cleaner = require('../models/Cleaner');
 const Chat = require('../models/chat');
 const User = require('../models/User');
-const { authenticate } = require('../middleware/auth'); // Importación corregida del middleware
+const { authenticate } = require('../middleware/auth'); // Importa la función de autenticación
 
 /**
  * @swagger
  * /chats:
  *   get:
- *     summary: Obtener todos los chats del usuario con los limpiadores (nombre y foto)
+ *     summary: "Obtener todos los chats del usuario con los limpiadores (nombre y foto)"
  *     tags: [Chats]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de limpiadores con los que el usuario ha chateado
+ *         description: "Lista de limpiadores con los que el usuario ha chateado"
  *         content:
  *           application/json:
  *             schema:
@@ -31,11 +31,13 @@ const { authenticate } = require('../middleware/auth'); // Importación corregid
  *                   imageurl:
  *                     type: string
  *       401:
- *         description: No autenticado
+ *         description: "No autenticado"
  *       500:
- *         description: Error en el servidor
+ *         description: "Error en el servidor"
  */
-router.get('/chats', authenticate, async (req, res) => {
+// GET /
+// Obtener todos los chats del usuario con los limpiadores (nombre y foto)
+router.get('/', authenticate, async (req, res) => {
   try {
     // Obtener IDs únicos de limpiadores con los que el usuario ha chateado
     const cleanerIds = await Chat.findAll({
@@ -69,7 +71,7 @@ router.get('/chats', authenticate, async (req, res) => {
  * @swagger
  * /chats/{cleanerId}:
  *   get:
- *     summary: Obtener mensajes con un limpiador específico
+ *     summary: "Obtener mensajes con un limpiador específico"
  *     tags: [Chats]
  *     security:
  *       - bearerAuth: []
@@ -79,10 +81,10 @@ router.get('/chats', authenticate, async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID del limpiador
+ *         description: "ID del limpiador"
  *     responses:
  *       200:
- *         description: Mensajes con el limpiador
+ *         description: "Mensajes con el limpiador"
  *         content:
  *           application/json:
  *             schema:
@@ -108,16 +110,18 @@ router.get('/chats', authenticate, async (req, res) => {
  *                         type: string
  *                       sender:
  *                         type: string
- *                         enum: ['user', 'cleaner']
+ *                         enum: [user, cleaner]
  *                       createdAt:
  *                         type: string
  *                         format: date-time
  *       404:
- *         description: Limpiador no encontrado o sin mensajes
+ *         description: "Limpiador no encontrado"
  *       500:
- *         description: Error en el servidor
+ *         description: "Error en el servidor"
  */
-router.get('/chats/:cleanerId', authenticate, async (req, res) => {
+// GET /:cleanerId
+// Obtener mensajes con un limpiador específico
+router.get('/:cleanerId', authenticate, async (req, res) => {
   try {
     const { cleanerId } = req.params;
     const userId = req.user.id;
@@ -168,7 +172,7 @@ router.get('/chats/:cleanerId', authenticate, async (req, res) => {
  * @swagger
  * /chats/{recipientId}/messages:
  *   post:
- *     summary: Enviar un mensaje a un limpiador o usuario
+ *     summary: "Enviar un mensaje a un limpiador o usuario"
  *     tags: [Chats]
  *     security:
  *       - bearerAuth: []
@@ -178,7 +182,7 @@ router.get('/chats/:cleanerId', authenticate, async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID del destinatario (limpiador o usuario)
+ *         description: "ID del destinatario (limpiador o usuario)"
  *     requestBody:
  *       required: true
  *       content:
@@ -188,10 +192,10 @@ router.get('/chats/:cleanerId', authenticate, async (req, res) => {
  *             properties:
  *               message:
  *                 type: string
- *                 description: Contenido del mensaje
+ *                 description: "Contenido del mensaje"
  *     responses:
  *       201:
- *         description: Mensaje creado exitosamente
+ *         description: "Mensaje creado exitosamente"
  *         content:
  *           application/json:
  *             schema:
@@ -203,18 +207,20 @@ router.get('/chats/:cleanerId', authenticate, async (req, res) => {
  *                   type: string
  *                 sender:
  *                   type: string
- *                   enum: ['user', 'cleaner']
+ *                   enum: [user, cleaner]
  *                 createdAt:
  *                   type: string
  *                   format: date-time
  *       400:
- *         description: Datos inválidos o faltantes
+ *         description: "Mensaje vacío o datos inválidos"
  *       404:
- *         description: Destinatario no encontrado
+ *         description: "Destinatario no encontrado"
  *       500:
- *         description: Error en el servidor
+ *         description: "Error en el servidor"
  */
-router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
+// POST /:recipientId/messages
+// Enviar un mensaje a un limpiador o usuario
+router.post('/:recipientId/messages', authenticate, async (req, res) => {
   try {
     const { recipientId } = req.params;
     const { message } = req.body;
@@ -240,7 +246,6 @@ router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
       if (!cleanerExists) {
         return res.status(404).json({ error: 'Limpiador no encontrado' });
       }
-
     } else if (role === 'cleaner') {
       // Limpiador respondiendo a usuario
       userId = recipientId;
@@ -254,7 +259,6 @@ router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
       if (!userExists) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
       }
-
     } else {
       return res.status(403).json({ error: 'Rol de usuario no válido' });
     }
@@ -273,7 +277,6 @@ router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
       sender: newMessage.sender,
       createdAt: newMessage.createdAt
     });
-
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -281,15 +284,15 @@ router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
 
 /**
  * @swagger
- * /cleaner/chats:
+ * /chats/cleaner/chats:
  *   get:
- *     summary: Obtener todos los usuarios con los que el limpiador ha chateado
+ *     summary: "Obtener todos los usuarios con los que el limpiador ha chateado"
  *     tags: [Cleaner Chats]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de usuarios
+ *         description: "Lista de usuarios"
  *         content:
  *           application/json:
  *             schema:
@@ -304,10 +307,13 @@ router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
  *                   imageurl:
  *                     type: string
  *       401:
- *         description: No autenticado
+ *         description: "No autenticado"
  *       500:
- *         description: Error en el servidor
+ *         description: "Error en el servidor"
  */
+// --- Rutas para el limpiador ---
+// GET /cleaner/chats
+// Obtener todos los usuarios con los que el limpiador ha chateado
 router.get('/cleaner/chats', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.id;
@@ -335,9 +341,9 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
 
 /**
  * @swagger
- * /cleaner/chats/{userId}:
+ * /chats/cleaner/chats/{userId}:
  *   get:
- *     summary: Obtener mensajes con un usuario específico
+ *     summary: "Obtener mensajes con un usuario específico"
  *     tags: [Cleaner Chats]
  *     security:
  *       - bearerAuth: []
@@ -347,10 +353,10 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID del usuario
+ *         description: "ID del usuario"
  *     responses:
  *       200:
- *         description: Mensajes con el usuario
+ *         description: "Mensajes con el usuario"
  *         content:
  *           application/json:
  *             schema:
@@ -376,15 +382,17 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *                         type: string
  *                       sender:
  *                         type: string
- *                         enum: ['user', 'cleaner']
+ *                         enum: [user, cleaner]
  *                       createdAt:
  *                         type: string
  *                         format: date-time
  *       404:
- *         description: Usuario no encontrado
+ *         description: "Usuario no encontrado"
  *       500:
- *         description: Error en el servidor
+ *         description: "Error en el servidor"
  */
+// GET /cleaner/chats/:userId
+// Obtener mensajes con un usuario específico
 router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -427,9 +435,9 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
 
 /**
  * @swagger
- * /cleaner/chats/{userId}/messages:
+ * /chats/cleaner/chats/{userId}/messages:
  *   post:
- *     summary: Enviar mensaje a un usuario
+ *     summary: "Enviar mensaje a un usuario"
  *     tags: [Cleaner Chats]
  *     security:
  *       - bearerAuth: []
@@ -439,7 +447,7 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID del usuario
+ *         description: "ID del usuario"
  *     requestBody:
  *       required: true
  *       content:
@@ -451,7 +459,7 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
  *                 type: string
  *     responses:
  *       201:
- *         description: Mensaje creado
+ *         description: "Mensaje creado"
  *         content:
  *           application/json:
  *             schema:
@@ -463,17 +471,19 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
  *                   type: string
  *                 sender:
  *                   type: string
- *                   enum: ['cleaner']
+ *                   enum: [cleaner]
  *                 createdAt:
  *                   type: string
  *                   format: date-time
  *       400:
- *         description: Datos inválidos
+ *         description: "Mensaje vacío o datos inválidos"
  *       404:
- *         description: Usuario no encontrado
+ *         description: "Usuario no encontrado"
  *       500:
- *         description: Error en el servidor
+ *         description: "Error en el servidor"
  */
+// POST /cleaner/chats/:userId/messages
+// Enviar mensaje a un usuario
 router.post('/cleaner/chats/:userId/messages', authenticate, async (req, res) => {
   try {
     const { userId } = req.params;
