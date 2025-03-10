@@ -6,7 +6,6 @@ const Chat = require('../models/chat');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth'); // Importa la función de autenticación
 
-
 /**
  * @swagger
  * /chats:
@@ -313,9 +312,11 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
  *         description: "Error en el servidor"
  */
 // --- Rutas para el limpiador ---
-// GET /cleaner/chats
-// Obtener todos los usuarios con los que el limpiador ha chateado
+// Estas rutas solo podrán ser utilizadas si el usuario autenticado tiene rol "cleaner"
 router.get('/cleaner/chats', authenticate, async (req, res) => {
+  if (req.user.role !== 'cleaner') {
+    return res.status(403).json({ error: 'Acceso no autorizado' });
+  }
   try {
     const cleanerId = req.user.id;
 
@@ -392,9 +393,10 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *       500:
  *         description: "Error en el servidor"
  */
-// GET /cleaner/chats/:userId
-// Obtener mensajes con un usuario específico
 router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
+  if (req.user.role !== 'cleaner') {
+    return res.status(403).json({ error: 'Acceso no autorizado' });
+  }
   try {
     const { userId } = req.params;
     const cleanerId = req.user.id;
@@ -483,9 +485,10 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
  *       500:
  *         description: "Error en el servidor"
  */
-// POST /cleaner/chats/:userId/messages
-// Enviar mensaje a un usuario
 router.post('/cleaner/chats/:userId/messages', authenticate, async (req, res) => {
+  if (req.user.role !== 'cleaner') {
+    return res.status(403).json({ error: 'Acceso no autorizado' });
+  }
   try {
     const { userId } = req.params;
     const { message } = req.body;
