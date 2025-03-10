@@ -1,398 +1,22 @@
-// routes/userRoutes.js
 const express = require('express');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { Op } = require('sequelize');
-const User = require('../models/User');
-const Proposal = require('../models/Proposal'); // Se asume que este modelo está definido
-const { authenticate } = require('../middleware/auth');
 const router = express.Router();
-
-const SECRET_KEY = 'your_secret_key';
-const ADMIN_EMAIL = 'UserAdmin@gmail.com';
-
-// ========== Middlewares ==========
-
-function checkUserOrAdmin(req, res, next) {
-  const userId = parseInt(req.params.id);
-  if (!isNaN(userId) && (req.user.id === userId || req.user.email === ADMIN_EMAIL)) {
-    next();
-  } else {
-    res.status(403).send('Access denied');
-  }
-}
-
-function checkAdmin(req, res, next) {
-  if (req.user.email === ADMIN_EMAIL) {
-    next();
-  } else {
-    return res.status(403).send('Access denied: Admin only.');
-  }
-}
-
-// ========== Endpoints ==========
+const sequelize = require('../config/database'); // Importa la instancia de Sequelize
+const Cleaner = require('../models/Cleaner');
+const Chat = require('../models/chat');
+const User = require('../models/User');
+const { authenticate } = require('../middleware/auth'); // Importación corregida del middleware
 
 /**
  * @swagger
- * /users/register:
- *   post:
- *     summary: Registrar un nuevo usuario
- *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               latitude:
- *                 type: number
- *               longitude:
- *                 type: number
- *               image_url:
- *                 type: string
- *     responses:
- *       201:
- *         description: Usuario registrado exitosamente
- */
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password, latitude, longitude, image_url } = req.body;
-
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) return res.status(400).send('Email already registered');
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await User.create({ 
-      name, 
-      email, 
-      password: hashedPassword, 
-      latitude, 
-      longitude,
-      imageUrl: image_url 
-    });
-    
-    res.status(201).json(user);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users/login:
- *   post:
- *     summary: Iniciar sesión como usuario
- *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Inicio de sesión exitoso
- */
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(404).send('User not found');
-
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) return res.status(400).send('Invalid password');
-
-    const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: '3d' });
-    res.json({ token });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users/me:
+ * /chats:
  *   get:
- *     summary: Obtener información del usuario autenticado
- *     tags: [Users]
+ *     summary: Obtener todos los chats del usuario con los limpiadores (nombre y foto)
+ *     tags: [Chats]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Información del usuario
- */
-router.get('/me', authenticate, async (req, res) => {
-  try {
-    const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } });
-    if (!user) return res.status(404).send('User not found');
-    res.json(user);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users:
- *   get:
- *     summary: Obtener todos los usuarios (Admin)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: page
- *         in: query
- *         schema: { type: integer }
- *       - name: size
- *         in: query
- *         schema: { type: integer }
- *     responses:
- *       200:
- *         description: Lista de usuarios paginada
- */
-router.get('/', authenticate, checkAdmin, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const size = parseInt(req.query.size) || 10;
-
-    const { count, rows } = await User.findAndCountAll({
-      offset: (page - 1) * size,
-      limit: size,
-      attributes: { exclude: ['password'] }
-    });
-
-    res.json({
-      totalUsers: count,
-      totalPages: Math.ceil(count / size),
-      currentPage: page,
-      users: rows,
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users/{id}:
- *   put:
- *     summary: Actualizar usuario
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *               latitude:
- *                 type: number
- *               longitude:
- *                 type: number
- *               image_url:
- *                 type: string
- *     responses:
- *       200:
- *         description: Usuario actualizado
- */
-router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
-  try {
-    const user = await User.findByPk(req.params.id);
-    if (!user) return res.status(404).send('User not found');
-
-    const { name, email, password, latitude, longitude, image_url } = req.body;
-
-    if (email && email !== user.email) {
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser) return res.status(400).send('Email already in use');
-    }
-
-    if (password) user.password = await bcrypt.hash(password, 10);
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (latitude !== undefined) user.latitude = latitude;
-    if (longitude !== undefined) user.longitude = longitude;
-    if (image_url) user.imageUrl = image_url;
-
-    await user.save();
-    
-    const userData = user.get({ plain: true });
-    delete userData.password;
-    
-    res.json(userData);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users/{id}:
- *   delete:
- *     summary: Eliminar usuario (Admin)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       204:
- *         description: Usuario eliminado
- */
-router.delete('/:id', authenticate, checkAdmin, async (req, res) => {
-  try {
-    const user = await User.findByPk(req.params.id);
-    if (!user) return res.status(404).send('User not found');
-    
-    await user.destroy();
-    res.status(204).send();
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users/notifications:
- *   get:
- *     summary: Obtener notificaciones personales con paginación
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     description: "Devuelve las notificaciones para el usuario autenticado, basadas en propuestas que hayan cambiado de estado (ya no están en 'pending'). Cada notificación tiene el formato: propuesta <tipodeservicio> ha sido '<status>'."
- *     parameters:
- *       - name: page
- *         in: query
- *         schema: { type: integer }
- *         description: Número de página (por defecto 1)
- *       - name: size
- *         in: query
- *         schema: { type: integer }
- *         description: Tamaño de página (por defecto 10)
- *     responses:
- *       200:
- *         description: Lista de notificaciones paginadas
- */
-router.get('/notifications', authenticate, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const size = parseInt(req.query.size) || 10;
-
-    // Se buscan las propuestas del usuario cuyo estado ya no sea "pending"
-    const { count, rows } = await Proposal.findAndCountAll({
-      where: {
-        userId: req.user.id,
-        status: { [Op.ne]: 'pending' }
-      },
-      offset: (page - 1) * size,
-      limit: size,
-      order: [['updatedAt', 'DESC']]
-    });
-
-    // Se genera la notificación a partir del tipodeservicio y el estado actual
-    const notifications = rows.map(proposal => ({
-      message: `propuesta ${proposal.tipodeservicio} ha sido '${proposal.status}'`,
-      proposalId: proposal.id,
-      tipodeservicio: proposal.tipodeservicio,
-      status: proposal.status,
-      updatedAt: proposal.updatedAt
-    }));
-
-    res.json({
-      totalNotifications: count,
-      totalPages: Math.ceil(count / size),
-      currentPage: page,
-      notifications,
-    });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users/notifications/{proposalId}:
- *   delete:
- *     summary: 'Descartar (borrar) una notificación'
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     description: "Como las notificaciones se generan a partir de propuestas, al descartar una notificación el servidor no elimina la propuesta. Se espera que el cliente retire la notificación de su interfaz."
- *     parameters:
- *       - in: path
- *         name: proposalId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Notificación descartada exitosamente
- *       404:
- *         description: Notificación no encontrada
- */
-router.delete('/notifications/:proposalId', authenticate, async (req, res) => {
-  try {
-    const proposalId = parseInt(req.params.proposalId);
-    if (isNaN(proposalId)) return res.status(400).send('Invalid proposal ID');
-
-    // Buscamos la propuesta del usuario cuyo estado ya no es "pending"
-    const proposal = await Proposal.findOne({
-      where: {
-        id: proposalId,
-        userId: req.user.id,
-        status: { [Op.ne]: 'pending' }
-      }
-    });
-
-    if (!proposal) return res.status(404).send('Notification not found');
-
-    // Como no contamos con un campo para descartar la notificación, devolvemos un mensaje
-    // para que el cliente retire la notificación de su lista.
-    res.send('Notification dismissed (client should remove it)');
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /users/name-photo:
- *   get:
- *     summary: Obtener nombre y foto de los usuarios
- *     tags: [Users]
- *     responses:
- *       200:
- *         description: Lista de nombres y fotos de los usuarios.
+ *         description: Lista de limpiadores con los que el usuario ha chateado
  *         content:
  *           application/json:
  *             schema:
@@ -400,28 +24,490 @@ router.delete('/notifications/:proposalId', authenticate, async (req, res) => {
  *               items:
  *                 type: object
  *                 properties:
+ *                   id:
+ *                     type: integer
  *                   name:
  *                     type: string
- *                   imageUrl:
+ *                   imageurl:
  *                     type: string
+ *       401:
+ *         description: No autenticado
+ *       500:
+ *         description: Error en el servidor
  */
-// Nuevo endpoint público para obtener nombre e imagen por ID
-router.get('/:id/name-photo', async (req, res) => {
+router.get('/chats', authenticate, async (req, res) => {
   try {
-    const userId = parseInt(req.params.id, 10);
-    if (isNaN(userId)) return res.status(400).send('Invalid user ID');
-
-    const user = await User.findByPk(userId, {
-      attributes: ['name', 'imageUrl']
+    // Obtener IDs únicos de limpiadores con los que el usuario ha chateado
+    const cleanerIds = await Chat.findAll({
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('cleanerId')), 'cleanerId']],
+      where: { userId: req.user.id }
     });
 
-    if (!user) return res.status(404).send('User not found');
+    // Extraer los IDs de los resultados
+    const ids = cleanerIds.map(c => c.cleanerId);
 
-    res.json(user);
-  } catch (err) {
-    res.status(500).send(err.message);
+    // Si no hay limpiadores, retornar array vacío
+    if (ids.length === 0) return res.json([]);
+
+    // Obtener detalles de los limpiadores
+    const cleaners = await Cleaner.findAll({
+      where: { cleaner_id: ids },
+      attributes: [
+        [sequelize.col('cleaner_id'), 'id'], // Mapear 'cleaner_id' a 'id'
+        'name',
+        'imageurl'
+      ]
+    });
+
+    res.json(cleaners);
+  } catch (error) {
+    res.status(500).send(error.message);
   }
 });
 
+/**
+ * @swagger
+ * /chats/{cleanerId}:
+ *   get:
+ *     summary: Obtener mensajes con un limpiador específico
+ *     tags: [Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: cleanerId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del limpiador
+ *     responses:
+ *       200:
+ *         description: Mensajes con el limpiador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 cleaner:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     name:
+ *                       type: string
+ *                     imageurl:
+ *                       type: string
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       message:
+ *                         type: string
+ *                       sender:
+ *                         type: string
+ *                         enum: ['user', 'cleaner']
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *       404:
+ *         description: Limpiador no encontrado o sin mensajes
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/chats/:cleanerId', authenticate, async (req, res) => {
+  try {
+    const { cleanerId } = req.params;
+    const userId = req.user.id;
+
+    // Verificar existencia del limpiador
+    const cleaner = await Cleaner.findOne({
+      where: { cleaner_id: cleanerId },
+      attributes: [
+        [sequelize.col('cleaner_id'), 'id'],
+        'name',
+        'imageurl'
+      ]
+    });
+
+    if (!cleaner) {
+      return res.status(404).json({ error: 'Limpiador no encontrado' });
+    }
+
+    // Obtener mensajes entre el usuario y el limpiador
+    const messages = await Chat.findAll({
+      where: {
+        userId: userId,
+        cleanerId: cleanerId
+      },
+      attributes: ['id', 'message', 'sender', 'createdAt'],
+      order: [['createdAt', 'ASC']]
+    });
+
+    res.json({
+      cleaner: {
+        id: cleaner.id,
+        name: cleaner.name,
+        imageurl: cleaner.imageurl
+      },
+      messages: messages.map(msg => ({
+        id: msg.id,
+        message: msg.message,
+        sender: msg.sender,
+        createdAt: msg.createdAt
+      }))
+    });
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+/**
+ * @swagger
+ * /chats/{recipientId}/messages:
+ *   post:
+ *     summary: Enviar un mensaje a un limpiador o usuario
+ *     tags: [Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: recipientId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del destinatario (limpiador o usuario)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: Contenido del mensaje
+ *     responses:
+ *       201:
+ *         description: Mensaje creado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 message:
+ *                   type: string
+ *                 sender:
+ *                   type: string
+ *                   enum: ['user', 'cleaner']
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Datos inválidos o faltantes
+ *       404:
+ *         description: Destinatario no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
+  try {
+    const { recipientId } = req.params;
+    const { message } = req.body;
+    const { role, id: senderId } = req.user;
+
+    // Validar contenido del mensaje
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
+    }
+
+    let userId, cleanerId, senderType;
+
+    if (role === 'user') {
+      // Usuario enviando a limpiador
+      userId = senderId;
+      cleanerId = recipientId;
+      senderType = 'user';
+
+      // Verificar existencia del limpiador
+      const cleanerExists = await Cleaner.findOne({
+        where: { cleaner_id: recipientId }
+      });
+      if (!cleanerExists) {
+        return res.status(404).json({ error: 'Limpiador no encontrado' });
+      }
+
+    } else if (role === 'cleaner') {
+      // Limpiador respondiendo a usuario
+      userId = recipientId;
+      cleanerId = senderId;
+      senderType = 'cleaner';
+
+      // Verificar existencia del usuario
+      const userExists = await User.findOne({
+        where: { id: recipientId }
+      });
+      if (!userExists) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+
+    } else {
+      return res.status(403).json({ error: 'Rol de usuario no válido' });
+    }
+
+    // Crear el mensaje
+    const newMessage = await Chat.create({
+      userId,
+      cleanerId,
+      message,
+      sender: senderType
+    });
+
+    res.status(201).json({
+      id: newMessage.id,
+      message: newMessage.message,
+      sender: newMessage.sender,
+      createdAt: newMessage.createdAt
+    });
+
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+/**
+ * @swagger
+ * /cleaner/chats:
+ *   get:
+ *     summary: Obtener todos los usuarios con los que el limpiador ha chateado
+ *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   name:
+ *                     type: string
+ *                   imageurl:
+ *                     type: string
+ *       401:
+ *         description: No autenticado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/cleaner/chats', authenticate, async (req, res) => {
+  try {
+    const cleanerId = req.user.id;
+
+    // Obtener IDs únicos de usuarios
+    const userIds = await Chat.findAll({
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('userId')), 'userId']],
+      where: { cleanerId }
+    });
+
+    const ids = userIds.map(u => u.userId);
+    if (ids.length === 0) return res.json([]);
+
+    // Obtener detalles de los usuarios
+    const users = await User.findAll({
+      where: { id: ids },
+      attributes: ['id', 'name', 'imageurl']
+    });
+
+    res.json(users);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+/**
+ * @swagger
+ * /cleaner/chats/{userId}:
+ *   get:
+ *     summary: Obtener mensajes con un usuario específico
+ *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Mensajes con el usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     name:
+ *                       type: string
+ *                     imageurl:
+ *                       type: string
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       message:
+ *                         type: string
+ *                       sender:
+ *                         type: string
+ *                         enum: ['user', 'cleaner']
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const cleanerId = req.user.id;
+
+    // Verificar existencia del usuario
+    const user = await User.findOne({
+      where: { id: userId },
+      attributes: ['id', 'name', 'imageurl']
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Obtener mensajes
+    const messages = await Chat.findAll({
+      where: { userId, cleanerId },
+      attributes: ['id', 'message', 'sender', 'createdAt'],
+      order: [['createdAt', 'ASC']]
+    });
+
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        imageurl: user.imageurl
+      },
+      messages: messages.map(msg => ({
+        id: msg.id,
+        message: msg.message,
+        sender: msg.sender,
+        createdAt: msg.createdAt
+      }))
+    });
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
+
+/**
+ * @swagger
+ * /cleaner/chats/{userId}/messages:
+ *   post:
+ *     summary: Enviar mensaje a un usuario
+ *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Mensaje creado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 message:
+ *                   type: string
+ *                 sender:
+ *                   type: string
+ *                   enum: ['cleaner']
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Usuario no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.post('/cleaner/chats/:userId/messages', authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { message } = req.body;
+    const cleanerId = req.user.id;
+
+    // Validar mensaje
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Mensaje vacío' });
+    }
+
+    // Verificar existencia del usuario
+    const userExists = await User.findOne({ where: { id: userId } });
+    if (!userExists) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Crear mensaje
+    const newMessage = await Chat.create({
+      userId,
+      cleanerId,
+      message,
+      sender: 'cleaner'
+    });
+
+    res.status(201).json({
+      id: newMessage.id,
+      message: newMessage.message,
+      sender: newMessage.sender,
+      createdAt: newMessage.createdAt
+    });
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
 
 module.exports = router;

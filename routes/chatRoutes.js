@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const sequelize = require('../config/database'); // Importa la instancia de Sequelize
 const Cleaner = require('../models/Cleaner');
-const authMiddleware = require('../middleware/auth'); // Middleware de autenticación
 const Chat = require('../models/chat');
 const User = require('../models/User');
+const { authenticate } = require('../middleware/auth'); // Importación corregida del middleware
+
 /**
  * @swagger
  * /chats:
@@ -33,12 +35,12 @@ const User = require('../models/User');
  *       500:
  *         description: Error en el servidor
  */
-router.get('/chats', authMiddleware, async (req, res) => {
+router.get('/chats', authenticate, async (req, res) => {
   try {
     // Obtener IDs únicos de limpiadores con los que el usuario ha chateado
     const cleanerIds = await Chat.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col('cleanerId')), 'cleanerId']],
-      where: { userId: req.user.id } // Asumiendo que el middleware de autenticación establece req.user
+      where: { userId: req.user.id }
     });
 
     // Extraer los IDs de los resultados
@@ -115,7 +117,7 @@ router.get('/chats', authMiddleware, async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
-router.get('/chats/:cleanerId', authMiddleware, async (req, res) => {
+router.get('/chats/:cleanerId', authenticate, async (req, res) => {
   try {
     const { cleanerId } = req.params;
     const userId = req.user.id;
@@ -157,7 +159,6 @@ router.get('/chats/:cleanerId', authMiddleware, async (req, res) => {
         createdAt: msg.createdAt
       }))
     });
-
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -213,7 +214,7 @@ router.get('/chats/:cleanerId', authMiddleware, async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
-router.post('/chats/:recipientId/messages', authMiddleware, async (req, res) => {
+router.post('/chats/:recipientId/messages', authenticate, async (req, res) => {
   try {
     const { recipientId } = req.params;
     const { message } = req.body;
@@ -278,9 +279,6 @@ router.post('/chats/:recipientId/messages', authMiddleware, async (req, res) => 
   }
 });
 
-
-
-// 1. Obtener todos los chats de un limpiador con usuarios
 /**
  * @swagger
  * /cleaner/chats:
@@ -310,7 +308,7 @@ router.post('/chats/:recipientId/messages', authMiddleware, async (req, res) => 
  *       500:
  *         description: Error en el servidor
  */
-router.get('/cleaner/chats', authMiddleware, async (req, res) => {
+router.get('/cleaner/chats', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.id;
 
@@ -335,7 +333,6 @@ router.get('/cleaner/chats', authMiddleware, async (req, res) => {
   }
 });
 
-// 2. Ver mensajes con un usuario específico
 /**
  * @swagger
  * /cleaner/chats/{userId}:
@@ -388,7 +385,7 @@ router.get('/cleaner/chats', authMiddleware, async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
-router.get('/cleaner/chats/:userId', authMiddleware, async (req, res) => {
+router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
   try {
     const { userId } = req.params;
     const cleanerId = req.user.id;
@@ -428,7 +425,6 @@ router.get('/cleaner/chats/:userId', authMiddleware, async (req, res) => {
   }
 });
 
-// 3. Enviar mensaje a un usuario
 /**
  * @swagger
  * /cleaner/chats/{userId}/messages:
@@ -478,7 +474,7 @@ router.get('/cleaner/chats/:userId', authMiddleware, async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
-router.post('/cleaner/chats/:userId/messages', authMiddleware, async (req, res) => {
+router.post('/cleaner/chats/:userId/messages', authenticate, async (req, res) => {
   try {
     const { userId } = req.params;
     const { message } = req.body;
