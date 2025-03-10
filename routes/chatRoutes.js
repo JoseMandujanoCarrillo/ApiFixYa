@@ -6,6 +6,7 @@ const Chat = require('../models/chat');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth'); // Importa la función de autenticación
 
+
 /**
  * @swagger
  * /chats:
