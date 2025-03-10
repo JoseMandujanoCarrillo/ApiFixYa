@@ -12,6 +12,7 @@ const SECRET_KEY = 'your_secret_key';
 const ADMIN_EMAIL = 'UserAdmin@gmail.com';
 
 // ========== Middlewares ==========
+
 function checkUserOrAdmin(req, res, next) {
   const userId = parseInt(req.params.id);
   if (!isNaN(userId) && (req.user.id === userId || req.user.email === ADMIN_EMAIL)) {
@@ -262,7 +263,8 @@ router.put('/:id', authenticate, checkUserOrAdmin, async (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: integer }
+ *         schema:
+ *           type: integer
  *     responses:
  *       204:
  *         description: Usuario eliminado
@@ -377,6 +379,38 @@ router.delete('/notifications/:proposalId', authenticate, async (req, res) => {
     // Como no contamos con un campo para descartar la notificación, devolvemos un mensaje
     // para que el cliente retire la notificación de su lista.
     res.send('Notification dismissed (client should remove it)');
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /users/name-photo:
+ *   get:
+ *     summary: Obtener nombre y foto de los usuarios
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Lista de nombres y fotos de los usuarios.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   imageUrl:
+ *                     type: string
+ */
+router.get('/name-photo', async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['name', 'imageUrl']
+    });
+    res.json(users);
   } catch (err) {
     res.status(500).send(err.message);
   }

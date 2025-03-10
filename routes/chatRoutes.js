@@ -1,167 +1,89 @@
+// routes/chatRoutes.js
 const express = require('express');
 const { Op } = require('sequelize');
-const Conversation = require('../models/Conversation'); // Modelo de conversaciones
-const Chat = require('../models/chat'); // Modelo de mensajes de chat
 const { authenticate } = require('../middleware/auth');
+const Chat = require('../models/Chat');
+const User = require('../models/User');
+const Cleaner = require('../models/Cleaner');
+
 const router = express.Router();
 
 /**
  * @swagger
  * tags:
- *   name: Conversations
- *   description: Gestión de conversaciones y mensajes de chat
+ *   name: Chat
+ *   description: Endpoints para el chat entre usuarios y limpiadores
  */
 
 /**
  * @swagger
- * /conversations/my:
- *   get:
- *     summary: Obtener todas las conversaciones del usuario autenticado
- *     tags: [Conversations]
+ * /chat/message:
+ *   post:
+ *     summary: Enviar un mensaje en el chat
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               partnerId:
+ *                 type: integer
+ *                 description: ID del usuario o limpiador receptor
+ *               message:
+ *                 type: string
+ *                 description: Contenido del mensaje
  *     responses:
- *       200:
- *         description: Lista de conversaciones del usuario autenticado
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Conversation'
- *       500:
- *         description: Error del servidor
- */
-router.get('/my', authenticate, async (req, res) => {
-  try {
-    let conversations;
-    // Si el usuario autenticado es un limpiador (se espera que tenga cleaner_id)
-    if (req.user.cleaner_id) {
-      conversations = await Conversation.findAll({
-        where: { cleaner_id: req.user.cleaner_id },
-        order: [['updated_at', 'DESC']]
-      });
-    } else { // Si es un cliente
-      conversations = await Conversation.findAll({
-        where: { user_id: req.user.id },
-        order: [['updated_at', 'DESC']]
-      });
-    }
-    res.json(conversations);
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /conversations/{id}:
- *   get:
- *     summary: Obtener una conversación por ID junto con sus mensajes
- *     tags: [Conversations]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID de la conversación
- *     responses:
- *       200:
- *         description: Conversación y sus mensajes
+ *       201:
+ *         description: Mensaje enviado exitosamente
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 conversation:
- *                   $ref: '#/components/schemas/Conversation'
- *                 messages:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Chat'
- *       404:
- *         description: Conversación no encontrada
- *       500:
- *         description: Error del servidor
- */
-router.get('/:id', authenticate, async (req, res) => {
-  try {
-    const conversation = await Conversation.findByPk(req.params.id);
-    if (!conversation) return res.status(404).send('Conversation not found');
-
-    // Verificar que el usuario autenticado participe en la conversación
-    if (
-      (req.user.cleaner_id && conversation.cleaner_id !== req.user.cleaner_id) ||
-      (!req.user.cleaner_id && conversation.user_id !== req.user.id)
-    ) {
-      return res.status(403).send('No tienes permiso para ver esta conversación');
-    }
-
-    const messages = await Chat.findAll({
-      where: { conversation_id: conversation.id },
-      order: [['created_at', 'ASC']]
-    });
-    res.json({ conversation, messages });
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-});
-
-/**
- * @swagger
- * /conversations:
- *   post:
- *     summary: Crear una nueva conversación entre un usuario y un limpiador
- *     tags: [Conversations]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               userId:
- *                 type: integer
- *                 description: ID del usuario (cliente)
- *               cleanerId:
- *                 type: integer
- *                 description: ID del limpiador
- *     responses:
- *       201:
- *         description: Conversación creada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Conversation'
+ *                 chat:
+ *                   type: object
  *       400:
- *         description: Error en la solicitud
+ *         description: Parámetros inválidos
  *       500:
- *         description: Error del servidor
+ *         description: Error en el servidor
  */
-router.post('/', authenticate, async (req, res) => {
+router.post('/message', authenticate, async (req, res) => {
   try {
-    let { userId, cleanerId } = req.body;
-    // Si el usuario autenticado es cliente, se asigna su ID automáticamente
-    if (!req.user.cleaner_id) {
-      userId = req.user.id;
-    } else {
-      // Si es limpiador, se asigna su cleaner_id
-      cleanerId = req.user.cleaner_id;
+    const { partnerId, message } = req.body;
+    if (!partnerId || !message) {
+      return res.status(400).json({ error: 'partnerId and message are required.' });
     }
 
-    // Opcional: Buscar si ya existe una conversación entre ambos participantes
-    let conversation = await Conversation.findOne({
-      where: { user_id: userId, cleaner_id: cleanerId }
-    });
-    if (!conversation) {
-      conversation = await Conversation.create({ user_id: userId, cleaner_id: cleanerId });
+    // Determinar el tipo del usuario autenticado
+    let currentType, currentId;
+    if (req.user.id) {
+      currentType = 'user';
+      currentId = req.user.id;
+    } else if (req.user.cleaner_id) {
+      currentType = 'cleaner';
+      currentId = req.user.cleaner_id;
+    } else {
+      return res.status(400).json({ error: 'Invalid user authentication data.' });
     }
-    res.status(201).json(conversation);
+
+    // Asumimos que el chat es entre un usuario y un limpiador, por lo que el tipo de
+    // interlocutor es el opuesto al del usuario autenticado.
+    const partnerType = currentType === 'user' ? 'cleaner' : 'user';
+
+    // Crear el mensaje de chat
+    const chatMessage = await Chat.create({
+      senderId: currentId,
+      senderType: currentType,
+      receiverId: partnerId,
+      receiverType: partnerType,
+      message: message
+    });
+
+    res.status(201).json({ chat: chatMessage });
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -169,74 +91,104 @@ router.post('/', authenticate, async (req, res) => {
 
 /**
  * @swagger
- * /conversations/{id}/message:
- *   post:
- *     summary: Enviar un mensaje dentro de una conversación
- *     tags: [Conversations]
+ * /chat/contacts:
+ *   get:
+ *     summary: Obtener los contactos del chat con nombre y foto
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID de la conversación
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               message:
- *                 type: string
- *                 description: Contenido del mensaje
- *               attachments:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array de URLs de archivos adjuntos (opcional)
  *     responses:
- *       201:
- *         description: Mensaje enviado correctamente
+ *       200:
+ *         description: Lista de contactos con nombre y foto
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Chat'
- *       404:
- *         description: Conversación no encontrada
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   name:
+ *                     type: string
+ *                   image:
+ *                     type: string
+ *                     description: URL de la imagen del contacto
  *       500:
- *         description: Error del servidor
+ *         description: Error en el servidor
  */
-router.post('/:id/message', authenticate, async (req, res) => {
+router.get('/contacts', authenticate, async (req, res) => {
   try {
-    const conversation = await Conversation.findByPk(req.params.id);
-    if (!conversation) return res.status(404).send('Conversation not found');
-
-    // Verificar que el usuario autenticado sea parte de la conversación
-    if (
-      (req.user.cleaner_id && conversation.cleaner_id !== req.user.cleaner_id) ||
-      (!req.user.cleaner_id && conversation.user_id !== req.user.id)
-    ) {
-      return res.status(403).send('No tienes permiso para enviar mensajes en esta conversación');
+    let currentType, currentId;
+    if (req.user.id) {
+      currentType = 'user';
+      currentId = req.user.id;
+    } else if (req.user.cleaner_id) {
+      currentType = 'cleaner';
+      currentId = req.user.cleaner_id;
+    } else {
+      return res.status(400).json({ error: 'Invalid user authentication data.' });
     }
 
-    const { message, attachments } = req.body;
-    if (!message) return res.status(400).send('El campo message es requerido');
-
-    // Determinar el tipo de remitente según el usuario autenticado
-    const senderType = req.user.cleaner_id ? 'cleaner' : 'user';
-
-    const chatMessage = await Chat.create({
-      conversation_id: conversation.id,
-      sender_type: senderType,
-      message,
-      attachments,
-      status: 'unread'
+    // Buscar todos los mensajes de chat donde el usuario actual es emisor o receptor
+    const chats = await Chat.findAll({
+      where: {
+        [Op.or]: [
+          { senderId: currentId, senderType: currentType },
+          { receiverId: currentId, receiverType: currentType }
+        ]
+      }
     });
 
-    res.status(201).json(chatMessage);
+    // Crear un conjunto único de contactos
+    const contactsMap = new Map();
+
+    chats.forEach(chat => {
+      let contactId, contactType;
+      if (chat.senderId === currentId && chat.senderType === currentType) {
+        contactId = chat.receiverId;
+        contactType = chat.receiverType;
+      } else {
+        contactId = chat.senderId;
+        contactType = chat.senderType;
+      }
+      const key = `${contactType}-${contactId}`;
+      if (!contactsMap.has(key)) {
+        contactsMap.set(key, { id: contactId, type: contactType });
+      }
+    });
+
+    // Obtener detalles de cada contacto desde el modelo correspondiente
+    const contacts = [];
+    for (let [key, contact] of contactsMap) {
+      if (contact.type === 'user') {
+        const user = await User.findOne({
+          where: { id: contact.id },
+          attributes: ['id', 'name', 'imageUrl']
+        });
+        if (user) {
+          contacts.push({
+            id: user.id,
+            name: user.name,
+            image: user.imageUrl
+          });
+        }
+      } else if (contact.type === 'cleaner') {
+        const cleaner = await Cleaner.findOne({
+          where: { cleaner_id: contact.id },
+          attributes: ['cleaner_id', 'name', 'imageurl']
+        });
+        if (cleaner) {
+          contacts.push({
+            id: cleaner.cleaner_id,
+            name: cleaner.name,
+            image: cleaner.imageurl
+          });
+        }
+      }
+    }
+
+    res.json(contacts);
   } catch (err) {
     res.status(500).send(err.message);
   }
