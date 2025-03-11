@@ -7,6 +7,15 @@ const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 
 /**
+ * Nota: Asegúrate de que el endpoint de login para cleaners incluya la propiedad
+ * "cleaner_id" en el token JWT. Por ejemplo, al firmar el token, utiliza:
+ * 
+ * jwt.sign({ id: cleaner.id, email: cleaner.email, cleaner_id: cleaner.id, role: 'cleaner' }, SECRET_KEY, { expiresIn: '3d' })
+ * 
+ * De lo contrario, req.user.cleaner_id quedará undefined y provocarás el error indicado.
+ */
+
+/**
  * @swagger
  * components:
  *   schemas:
@@ -335,7 +344,7 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *     responses:
  *       200:
  *         description: Detalles del usuario y sus mensajes.
- *         content:
+ *         content: 
  *           application/json:
  *             schema:
  *               type: object
