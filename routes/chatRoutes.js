@@ -19,27 +19,10 @@ const { authenticate } = require('../middleware/auth');
  *           type: string
  *         imageurl:
  *           type: string
- *         lastMessage:
- *           type: object
- *           properties:
- *             id:
- *               type: integer
- *             message:
- *               type: string
- *             sender:
- *               type: string
- *             createdAt:
- *               type: string
- *               format: date-time
  *       example:
  *         id: 1
  *         name: "Juan Pérez"
  *         imageurl: "http://example.com/juan.jpg"
- *         lastMessage:
- *           id: 10
- *           message: "Hola, ¿cómo estás?"
- *           sender: "user"
- *           createdAt: "2025-03-11T10:00:00.000Z"
  *     User:
  *       type: object
  *       properties:
@@ -81,13 +64,13 @@ const { authenticate } = require('../middleware/auth');
  * @swagger
  * /chats:
  *   get:
- *     summary: Obtener limpiadores con los que el usuario ha chateado y el último mensaje intercambiado
+ *     summary: Obtener limpiadores con los que el usuario ha chateado
  *     tags: [Chats]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de limpiadores con el último mensaje.
+ *         description: Lista de limpiadores con los que el usuario ha chateado.
  *         content:
  *           application/json:
  *             schema:
@@ -100,46 +83,27 @@ const { authenticate } = require('../middleware/auth');
 router.get('/', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
-    // Obtiene los IDs de los limpiadores con los que el usuario ha chateado
-    const cleanerIdsRecords = await Chat.findAll({
+    const cleanerIds = await Chat.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col('cleanerId')), 'cleanerId']],
       where: { userId }
     });
 
-    if (cleanerIdsRecords.length === 0) return res.json([]);
+    if (cleanerIds.length === 0) return res.json([]);
 
-    const cleanerIds = cleanerIdsRecords.map(record => record.cleanerId);
-
-    // Obtiene la información de cada limpiador
     const cleaners = await Cleaner.findAll({
-      where: { cleaner_id: cleanerIds },
-      attributes: [
-        [sequelize.col('cleaner_id'), 'id'],
-        'name',
-        'imageurl'
-      ]
+      where: { cleaner_id: cleanerIds.map(c => c.cleanerId) },
+      attributes: ['cleaner_id', 'name', 'imageurl']
     });
 
-    // Por cada limpiador se obtiene el último mensaje intercambiado con el usuario
-    const cleanerChats = await Promise.all(cleaners.map(async cleaner => {
-      const lastMessage = await Chat.findOne({
-        where: { userId, cleanerId: cleaner.id },
-        order: [['createdAt', 'DESC']]
-      });
-      return {
-        id: cleaner.id,
-        name: cleaner.name,
-        imageurl: cleaner.imageurl,
-        lastMessage: lastMessage ? {
-          id: lastMessage.id,
-          message: lastMessage.message,
-          sender: lastMessage.sender,
-          createdAt: lastMessage.createdAt
-        } : null
-      };
+    // Incluimos tanto 'id' como 'cleaner_id' en la respuesta
+    const result = cleaners.map(cleaner => ({
+      id: cleaner.cleaner_id,
+      cleaner_id: cleaner.cleaner_id,
+      name: cleaner.name,
+      imageurl: cleaner.imageurl
     }));
 
-    res.json(cleanerChats);
+    res.json(result);
   } catch (error) {
     res.status(500).send(error.message);
   }
