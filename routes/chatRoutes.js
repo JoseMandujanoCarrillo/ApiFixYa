@@ -6,9 +6,59 @@ const Chat = require('../models/chat');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 
-// -------------------------
-// RUTAS PARA USUARIOS
-// -------------------------
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Cleaner:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         name:
+ *           type: string
+ *         imageurl:
+ *           type: string
+ *       example:
+ *         id: 1
+ *         name: "Juan Pérez"
+ *         imageurl: "http://example.com/juan.jpg"
+ *     User:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         name:
+ *           type: string
+ *         imageUrl:
+ *           type: string
+ *       example:
+ *         id: 2
+ *         name: "María López"
+ *         imageUrl: "http://example.com/maria.jpg"
+ *     Message:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         message:
+ *           type: string
+ *         sender:
+ *           type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *       example:
+ *         id: 10
+ *         message: "Hola, ¿cómo estás?"
+ *         sender: "user"
+ *         createdAt: "2025-03-11T10:00:00.000Z"
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
 
 /**
  * @swagger
@@ -20,7 +70,15 @@ const { authenticate } = require('../middleware/auth');
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de limpiadores
+ *         description: Lista de limpiadores con los que el usuario ha chateado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Cleaner'
+ *       500:
+ *         description: Error en el servidor.
  */
 router.get('/', authenticate, async (req, res) => {
   try {
@@ -53,11 +111,33 @@ router.get('/', authenticate, async (req, res) => {
  *   get:
  *     summary: Obtener mensajes con un limpiador
  *     tags: [Chats]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: cleanerId
  *         in: path
+ *         description: ID del limpiador
  *         required: true
- *         type: integer
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Detalles del limpiador y los mensajes.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 cleaner:
+ *                   $ref: '#/components/schemas/Cleaner'
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Message'
+ *       404:
+ *         description: Limpiador no encontrado.
+ *       500:
+ *         description: Error en el servidor.
  */
 router.get('/:cleanerId', authenticate, async (req, res) => {
   try {
@@ -105,11 +185,40 @@ router.get('/:cleanerId', authenticate, async (req, res) => {
  *   post:
  *     summary: Enviar mensaje a limpiador/usuario
  *     tags: [Chats]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: recipientId
  *         in: path
+ *         description: ID del destinatario (puede ser un limpiador o usuario)
  *         required: true
- *         type: integer
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       description: Objeto con el mensaje a enviar
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *             required:
+ *               - message
+ *     responses:
+ *       201:
+ *         description: Mensaje enviado exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Message'
+ *       400:
+ *         description: Mensaje vacío.
+ *       404:
+ *         description: Limpiador o usuario no encontrado.
+ *       500:
+ *         description: Error en el servidor.
  */
 router.post('/:recipientId/messages', authenticate, async (req, res) => {
   try {
@@ -130,7 +239,7 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
       if (!cleanerExists) return res.status(404).json({ error: 'Limpiador no encontrado' });
     } else if (role === 'cleaner') {
       userId = recipientId;
-      cleanerId = req.user.cleaner_id; // Corrección clave
+      cleanerId = req.user.cleaner_id;
       senderType = 'cleaner';
       
       const userExists = await User.findOne({ where: { id: recipientId } });
@@ -157,10 +266,6 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
   }
 });
 
-// -------------------------
-// RUTAS PARA LIMPIADORES
-// -------------------------
-
 /**
  * @swagger
  * /chats/cleaner/chats:
@@ -169,6 +274,17 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
  *     tags: [Cleaner Chats]
  *     security:
  *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios con los que el limpiador ha chateado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
+ *       500:
+ *         description: Error en el servidor.
  */
 router.get('/cleaner/chats', authenticate, async (req, res) => {
   try {
@@ -197,11 +313,33 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *   get:
  *     summary: Obtener mensajes con un usuario específico
  *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: userId
  *         in: path
+ *         description: ID del usuario
  *         required: true
- *         type: integer
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Detalles del usuario y sus mensajes.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Message'
+ *       404:
+ *         description: Usuario no encontrado.
+ *       500:
+ *         description: Error en el servidor.
  */
 router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
   try {
@@ -245,11 +383,40 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
  *   post:
  *     summary: Enviar mensaje a usuario
  *     tags: [Cleaner Chats]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - name: userId
  *         in: path
+ *         description: ID del usuario destinatario
  *         required: true
- *         type: integer
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       description: Objeto con el mensaje a enviar
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *             required:
+ *               - message
+ *     responses:
+ *       201:
+ *         description: Mensaje enviado exitosamente.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Message'
+ *       400:
+ *         description: Mensaje vacío.
+ *       404:
+ *         description: Usuario no encontrado.
+ *       500:
+ *         description: Error en el servidor.
  */
 router.post('/cleaner/chats/:userId/messages', authenticate, async (req, res) => {
   try {
