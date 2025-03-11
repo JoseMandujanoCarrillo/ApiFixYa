@@ -99,9 +99,16 @@ router.get('/', authenticate, async (req, res) => {
 
     if (cleanerIds.length === 0) return res.json([]);
 
+    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
+
     const cleaners = await Cleaner.findAll({
       where: { cleaner_id: cleanerIds.map(c => c.cleanerId) },
-      attributes: ['cleaner_id', 'name', 'imageurl']
+      attributes: ['cleaner_id', 'name', 'imageurl'],
+      limit,
+      offset
     });
 
     // Incluimos tanto 'id' como 'cleaner_id' en la respuesta
@@ -168,10 +175,17 @@ router.get('/:cleanerId', authenticate, async (req, res) => {
 
     if (!cleaner) return res.status(404).json({ error: 'Limpiador no encontrado' });
 
+    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
+
     const messages = await Chat.findAll({
       where: { userId, cleanerId },
       attributes: ['id', 'message', 'sender', 'createdAt'],
-      order: [['createdAt', 'ASC']]
+      order: [['createdAt', 'ASC']],
+      limit,
+      offset
     });
 
     res.json({
@@ -315,9 +329,16 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
 
     if (userIds.length === 0) return res.json([]);
 
+    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
+
     const users = await User.findAll({
       where: { id: userIds.map(u => u.userId) },
-      attributes: ['id', 'name', 'imageUrl']
+      attributes: ['id', 'name', 'imageUrl'],
+      limit,
+      offset
     });
 
     res.json(users);
@@ -375,10 +396,17 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
     
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
+    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
+
     const messages = await Chat.findAll({
       where: { userId, cleanerId },
       attributes: ['id', 'message', 'sender', 'createdAt'],
-      order: [['createdAt', 'ASC']]
+      order: [['createdAt', 'ASC']],
+      limit,
+      offset
     });
 
     res.json({
