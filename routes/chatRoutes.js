@@ -10,9 +10,7 @@ const { authenticate } = require('../middleware/auth');
  * Nota: Asegúrate de que el endpoint de login para cleaners incluya la propiedad
  * "cleaner_id" en el token JWT. Por ejemplo, al firmar el token, utiliza:
  * 
- * jwt.sign({ id: cleaner.id, email: cleaner.email, cleaner_id: cleaner.id, role: 'cleaner' }, SECRET_KEY, { expiresIn: '3d' })
- * 
- * De lo contrario, req.user.cleaner_id quedará undefined y provocarás el error indicado.
+ * jwt.sign({ id: cleaner.id, email: cleaner.email, cleaner_id: cleaner.id }, SECRET_KEY, { expiresIn: '3d' })
  */
 
 /**
@@ -314,31 +312,26 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
   try {
     const recipientId = parseInt(req.params.recipientId, 10);
     const { message } = req.body;
-    const { role } = req.user;
 
     if (!message?.trim()) return res.status(400).json({ error: 'Mensaje vacío' });
 
     let userId, cleanerId, senderType;
 
-    if (role === 'user') {
-      userId = req.user.id;
-      cleanerId = recipientId;
-      senderType = 'user';
-      
-      const cleanerExists = await Cleaner.findOne({ where: { cleaner_id: recipientId } });
-      if (!cleanerExists) return res.status(404).json({ error: 'Limpiador no encontrado' });
-    } else if (role === 'cleaner') {
-      if (!req.user.cleaner_id) {
-        return res.status(400).json({ error: 'Cleaner ID is missing from token' });
-      }
+    // Si el token contiene la propiedad cleaner_id se asume que es un limpiador
+    if (req.user.cleaner_id) {
+      // Limpiador enviando mensaje a usuario
       userId = recipientId;
       cleanerId = req.user.cleaner_id;
       senderType = 'cleaner';
-      
       const userExists = await User.findOne({ where: { id: recipientId } });
       if (!userExists) return res.status(404).json({ error: 'Usuario no encontrado' });
     } else {
-      return res.status(403).json({ error: 'Rol no válido' });
+      // Usuario enviando mensaje a limpiador
+      userId = req.user.id;
+      cleanerId = recipientId;
+      senderType = 'user';
+      const cleanerExists = await Cleaner.findOne({ where: { cleaner_id: recipientId } });
+      if (!cleanerExists) return res.status(404).json({ error: 'Limpiador no encontrado' });
     }
 
     const newMessage = await Chat.create({
