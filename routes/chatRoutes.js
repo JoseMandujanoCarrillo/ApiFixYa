@@ -73,53 +73,90 @@ const { authenticate } = require('../middleware/auth');
  * @swagger
  * /chats:
  *   get:
- *     summary: Obtener limpiadores con los que el usuario ha chateado
+ *     summary: Obtener limpiadores con los que el usuario ha chateado (paginado)
  *     tags: [Chats]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número de página para la paginación.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Cantidad de registros por página.
  *     responses:
  *       200:
- *         description: Lista de limpiadores con los que el usuario ha chateado.
+ *         description: Lista de limpiadores con paginación.
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Cleaner'
+ *               type: object
+ *               properties:
+ *                 totalItems:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Cleaner'
  *       500:
  *         description: Error en el servidor.
  */
 router.get('/', authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
-    const cleanerIds = await Chat.findAll({
+    // Obtenemos los cleanerIds distintos con los que el usuario ha chateado
+    const cleanerIdsResults = await Chat.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col('cleanerId')), 'cleanerId']],
       where: { userId }
     });
+    const allCleanerIds = cleanerIdsResults.map(c => c.cleanerId);
 
-    if (cleanerIds.length === 0) return res.json([]);
-
-    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
+    // Si no hay resultados, devolvemos paginación con data vacía
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
+    if (allCleanerIds.length === 0) {
+      return res.json({
+        totalItems: 0,
+        totalPages: 0,
+        currentPage: page,
+        data: []
+      });
+    }
     const offset = (page - 1) * limit;
+    const totalItems = allCleanerIds.length;
+    const totalPages = Math.ceil(totalItems / limit);
 
+    // Obtenemos los cleaners filtrando por los ids encontrados y aplicando limit y offset
     const cleaners = await Cleaner.findAll({
-      where: { cleaner_id: cleanerIds.map(c => c.cleanerId) },
+      where: { cleaner_id: allCleanerIds },
       attributes: ['cleaner_id', 'name', 'imageurl'],
       limit,
       offset
     });
 
-    // Incluimos tanto 'id' como 'cleaner_id' en la respuesta
-    const result = cleaners.map(cleaner => ({
+    const data = cleaners.map(cleaner => ({
       id: cleaner.cleaner_id,
       cleaner_id: cleaner.cleaner_id,
       name: cleaner.name,
       imageurl: cleaner.imageurl
     }));
 
-    res.json(result);
+    res.json({
+      totalItems,
+      totalPages,
+      currentPage: page,
+      data
+    });
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -129,7 +166,7 @@ router.get('/', authenticate, async (req, res) => {
  * @swagger
  * /chats/{cleanerId}:
  *   get:
- *     summary: Obtener mensajes con un limpiador
+ *     summary: Obtener mensajes con un limpiador (paginado)
  *     tags: [Chats]
  *     security:
  *       - bearerAuth: []
@@ -140,9 +177,21 @@ router.get('/', authenticate, async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número de página para la paginación.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Cantidad de registros por página.
  *     responses:
  *       200:
- *         description: Detalles del limpiador y los mensajes.
+ *         description: Detalles del limpiador y mensajes paginados.
  *         content:
  *           application/json:
  *             schema:
@@ -151,9 +200,18 @@ router.get('/', authenticate, async (req, res) => {
  *                 cleaner:
  *                   $ref: '#/components/schemas/Cleaner'
  *                 messages:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Message'
+ *                   type: object
+ *                   properties:
+ *                     totalItems:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     currentPage:
+ *                       type: integer
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Message'
  *       404:
  *         description: Limpiador no encontrado.
  *       500:
@@ -175,12 +233,12 @@ router.get('/:cleanerId', authenticate, async (req, res) => {
 
     if (!cleaner) return res.status(404).json({ error: 'Limpiador no encontrado' });
 
-    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const offset = (page - 1) * limit;
 
-    const messages = await Chat.findAll({
+    // Usamos findAndCountAll para obtener la cuenta total y los registros paginados
+    const { count, rows } = await Chat.findAndCountAll({
       where: { userId, cleanerId },
       attributes: ['id', 'message', 'sender', 'createdAt'],
       order: [['createdAt', 'ASC']],
@@ -194,12 +252,17 @@ router.get('/:cleanerId', authenticate, async (req, res) => {
         name: cleaner.name,
         imageurl: cleaner.imageurl
       },
-      messages: messages.map(msg => ({
-        id: msg.id,
-        message: msg.message,
-        sender: msg.sender,
-        createdAt: msg.createdAt
-      }))
+      messages: {
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+        data: rows.map(msg => ({
+          id: msg.id,
+          message: msg.message,
+          sender: msg.sender,
+          createdAt: msg.createdAt
+        }))
+      }
     });
   } catch (error) {
     res.status(500).send(error.message);
@@ -300,19 +363,41 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
  * @swagger
  * /chats/cleaner/chats:
  *   get:
- *     summary: Obtener usuarios con los que el limpiador ha chateado
+ *     summary: Obtener usuarios con los que el limpiador ha chateado (paginado)
  *     tags: [Cleaner Chats]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número de página para la paginación.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Cantidad de registros por página.
  *     responses:
  *       200:
- *         description: Lista de usuarios con los que el limpiador ha chateado.
+ *         description: Lista de usuarios con paginación.
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/User'
+ *               type: object
+ *               properties:
+ *                 totalItems:
+ *                   type: integer
+ *                 totalPages:
+ *                   type: integer
+ *                 currentPage:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
  *       500:
  *         description: Error en el servidor.
  */
@@ -322,26 +407,40 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
     if (!cleanerId) {
       return res.status(400).json({ error: 'Cleaner ID is missing from token' });
     }
-    const userIds = await Chat.findAll({
+    // Obtenemos los userIds distintos con los que el cleaner ha chateado
+    const userIdsResults = await Chat.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col('userId')), 'userId']],
       where: { cleanerId }
     });
+    const allUserIds = userIdsResults.map(u => u.userId);
 
-    if (userIds.length === 0) return res.json([]);
-
-    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
+    if (allUserIds.length === 0) {
+      return res.json({
+        totalItems: 0,
+        totalPages: 0,
+        currentPage: page,
+        data: []
+      });
+    }
     const offset = (page - 1) * limit;
+    const totalItems = allUserIds.length;
+    const totalPages = Math.ceil(totalItems / limit);
 
     const users = await User.findAll({
-      where: { id: userIds.map(u => u.userId) },
+      where: { id: allUserIds },
       attributes: ['id', 'name', 'imageUrl'],
       limit,
       offset
     });
 
-    res.json(users);
+    res.json({
+      totalItems,
+      totalPages,
+      currentPage: page,
+      data: users
+    });
   } catch (error) {
     res.status(500).send(error.message);
   }
@@ -351,7 +450,7 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  * @swagger
  * /chats/cleaner/chats/{userId}:
  *   get:
- *     summary: Obtener mensajes con un usuario específico
+ *     summary: Obtener mensajes con un usuario específico (paginado)
  *     tags: [Cleaner Chats]
  *     security:
  *       - bearerAuth: []
@@ -362,9 +461,21 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Número de página para la paginación.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Cantidad de registros por página.
  *     responses:
  *       200:
- *         description: Detalles del usuario y sus mensajes.
+ *         description: Detalles del usuario y mensajes paginados.
  *         content: 
  *           application/json:
  *             schema:
@@ -373,9 +484,18 @@ router.get('/cleaner/chats', authenticate, async (req, res) => {
  *                 user:
  *                   $ref: '#/components/schemas/User'
  *                 messages:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Message'
+ *                   type: object
+ *                   properties:
+ *                     totalItems:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     currentPage:
+ *                       type: integer
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Message'
  *       404:
  *         description: Usuario no encontrado.
  *       500:
@@ -396,12 +516,11 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
     
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    // Paginación: definir page y limit a partir de query params (valores por defecto: page=1, limit=10)
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
     const offset = (page - 1) * limit;
 
-    const messages = await Chat.findAll({
+    const { count, rows } = await Chat.findAndCountAll({
       where: { userId, cleanerId },
       attributes: ['id', 'message', 'sender', 'createdAt'],
       order: [['createdAt', 'ASC']],
@@ -415,12 +534,17 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
         name: user.name,
         imageUrl: user.imageUrl
       },
-      messages: messages.map(msg => ({
-        id: msg.id,
-        message: msg.message,
-        sender: msg.sender,
-        createdAt: msg.createdAt
-      }))
+      messages: {
+        totalItems: count,
+        totalPages: Math.ceil(count / limit),
+        currentPage: page,
+        data: rows.map(msg => ({
+          id: msg.id,
+          message: msg.message,
+          sender: msg.sender,
+          createdAt: msg.createdAt
+        }))
+      }
     });
   } catch (error) {
     res.status(500).send(error.message);
