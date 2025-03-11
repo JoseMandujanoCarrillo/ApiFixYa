@@ -231,7 +231,7 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'El mensaje no puede estar vacío' });
     }
 
-    let userId, cleanerId, senderType;
+    let userId, cleaner_id, senderType;
 
     if (role === 'user') {
       // Usuario enviando a limpiador
