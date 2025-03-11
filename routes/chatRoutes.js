@@ -238,6 +238,9 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
       const cleanerExists = await Cleaner.findOne({ where: { cleaner_id: recipientId } });
       if (!cleanerExists) return res.status(404).json({ error: 'Limpiador no encontrado' });
     } else if (role === 'cleaner') {
+      if (!req.user.cleaner_id) {
+        return res.status(400).json({ error: 'Cleaner ID is missing from token' });
+      }
       userId = recipientId;
       cleanerId = req.user.cleaner_id;
       senderType = 'cleaner';
@@ -289,6 +292,9 @@ router.post('/:recipientId/messages', authenticate, async (req, res) => {
 router.get('/cleaner/chats', authenticate, async (req, res) => {
   try {
     const cleanerId = req.user.cleaner_id;
+    if (!cleanerId) {
+      return res.status(400).json({ error: 'Cleaner ID is missing from token' });
+    }
     const userIds = await Chat.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col('userId')), 'userId']],
       where: { cleanerId }
@@ -345,6 +351,9 @@ router.get('/cleaner/chats/:userId', authenticate, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId, 10);
     const cleanerId = req.user.cleaner_id;
+    if (!cleanerId) {
+      return res.status(400).json({ error: 'Cleaner ID is missing from token' });
+    }
 
     const user = await User.findOne({
       where: { id: userId },
@@ -423,7 +432,9 @@ router.post('/cleaner/chats/:userId/messages', authenticate, async (req, res) =>
     const userId = parseInt(req.params.userId, 10);
     const { message } = req.body;
     const cleanerId = req.user.cleaner_id;
-
+    if (!cleanerId) {
+      return res.status(400).json({ error: 'Cleaner ID is missing from token' });
+    }
     if (!message?.trim()) return res.status(400).json({ error: 'Mensaje vacío' });
 
     const userExists = await User.findOne({ where: { id: userId } });
