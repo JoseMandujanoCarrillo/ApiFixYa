@@ -452,7 +452,7 @@ router.put('/:id/verify', async (req, res) => {
     const cleaner = await Cleaner.findOne({ where: { cleaner_id: cleanerId } });
     if (!cleaner) return res.status(404).send('Cleaner not found');
 
-    cleaner.is_verifiqued = is.verifiqued;
+    cleaner.is_verifiqued = is_verifiqued;
     await cleaner.save();
     res.json(cleaner);
   } catch (err) {
