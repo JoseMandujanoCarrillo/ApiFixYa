@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const Auditor = require('../models/Auditor');
 const Cleaner = require('../models/Cleaner'); // Se requiere para obtener los cleaners
 const Service = require('../models/Service'); // Se requiere para obtener los services
+const Proposal = require('../models/Proposal'); // Se requiere para obtener las propuestas
+const User = require('../models/User'); // Se requiere para obtener el usuario asociado a la propuesta
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -327,6 +329,125 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
     await cleaner.save();
 
     res.json({ message: 'Verification status updated successfully', cleaner });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /auditors/me/proposals:
+ *   get:
+ *     summary: Obtener las propuestas para los servicios asignados al auditor
+ *     tags: [Auditors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas para los servicios del auditor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Proposal'
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/me/proposals', authenticate, async (req, res) => {
+  try {
+    const auditorId = req.user.auditor_id;
+    // Se utiliza la asociación entre Proposal y Service para filtrar los servicios asignados al auditor.
+    const proposals = await Proposal.findAll({
+      include: [{
+        model: Service,
+        where: { auditorId: auditorId }
+      }]
+    });
+    res.json(proposals);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /auditors/me/proposals/details:
+ *   get:
+ *     summary: Obtener detalles de las propuestas para los servicios asignados al auditor, incluyendo:
+ *              - Nombre del cleaner (desde Service > Cleaner)
+ *              - Nombre del usuario asociado (User)
+ *              - Imágenes: imagen_antes e imagen_despues
+ *              - Servicio al que pertenece la propuesta
+ *              - Dirección
+ *     tags: [Auditors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de detalles de propuestas.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   cleanerName:
+ *                     type: string
+ *                   userName:
+ *                     type: string
+ *                   imagen_antes:
+ *                     type: string
+ *                   imagen_despues:
+ *                     type: string
+ *                   service:
+ *                     type: object
+ *                   direccion:
+ *                     type: string
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/me/proposals/details', authenticate, async (req, res) => {
+  try {
+    const auditorId = req.user.auditor_id;
+    // Se buscan las propuestas cuyo servicio pertenezca al auditor autenticado.
+    // Se incluyen el Service (y su Cleaner) y el User asociados.
+    const proposals = await Proposal.findAll({
+      include: [
+        {
+          model: Service,
+          where: { auditorId: auditorId },
+          include: [
+            {
+              model: Cleaner,
+              attributes: ['name']
+            }
+          ]
+        },
+        {
+          model: User,
+          attributes: ['name']
+        }
+      ],
+      attributes: ['imagen_antes', 'imagen_despues', 'direccion']
+    });
+
+    // Se formatea la respuesta para obtener los datos requeridos.
+    const results = proposals.map(proposal => ({
+      cleanerName: proposal.Service.Cleaner.name,
+      userName: proposal.User.name,
+      imagen_antes: proposal.imagen_antes,
+      imagen_despues: proposal.imagen_despues,
+      service: proposal.Service, // Puedes filtrar las propiedades del servicio si es necesario.
+      direccion: proposal.direccion
+    }));
+
+    res.json(results);
   } catch (err) {
     res.status(500).send(err.message);
   }
