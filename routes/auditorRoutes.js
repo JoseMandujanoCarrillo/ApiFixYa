@@ -189,7 +189,8 @@ router.get('/me/services', authenticate, async (req, res) => {
     // Obtener los cleaners asignados al auditor
     const cleaners = await Cleaner.findAll({ where: { auditor_id: auditorId } });
     // Se asume que el modelo Cleaner tiene 'id' como clave primaria
-    const cleanerIds = cleaners.map(cleaner => cleaner.id);
+    const cleanerIds = cleaners.map(cleaner => cleaner.cleaner_id);
+
     
     // Obtener todos los servicios que pertenezcan a alguno de esos cleaners
     const services = await Service.findAll({
