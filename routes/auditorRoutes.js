@@ -338,19 +338,19 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
  * @swagger
  * /auditors/me/proposals:
  *   get:
- *     summary: Obtener las propuestas para los servicios asignados al auditor
+ *     summary: Obtener las propuestas para un servicio específico asignado al auditor
+ *     description: Se requiere pasar el id del servicio por query (?serviceId=)
  *     tags: [Auditors]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de propuestas para los servicios del auditor.
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
+ *         description: Lista de propuestas para el servicio indicado, incluyendo:
+ *           - Imágenes (imagen_antes e imagen_despues)
+ *           - Información del usuario (id y nombre)
+ *           - Información del cleaner (id y nombre)
+ *           - Datos del servicio (id y nombre)
+ *           - Dirección
  *       401:
  *         description: No autorizado
  *       500:
@@ -359,22 +359,40 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
 router.get('/me/proposals', authenticate, async (req, res) => {
   try {
     const auditorId = req.user.auditor_id;
-    // Obtenemos todas las propuestas y, para cada una, verificamos si el servicio asociado pertenece al auditor
+    const { serviceId } = req.query;
+    if (!serviceId) {
+      return res.status(400).json({ error: 'El id del servicio es requerido' });
+    }
+    
+    // Verificar que el servicio exista y pertenezca al auditor
+    const service = await Service.findByPk(serviceId);
+    if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
+    if (service.auditor_id !== auditorId) {
+      return res.status(403).json({ error: 'No tienes permiso para acceder a este servicio' });
+    }
+    
+    // Obtener las propuestas asociadas al servicio
     const proposals = await Proposal.findAll({
+      where: { serviceId },
       attributes: ['id', 'serviceId', 'userId', 'imagen_antes', 'imagen_despues', 'direccion']
     });
     
     const results = await Promise.all(
       proposals.map(async proposal => {
-        const service = await Service.findByPk(proposal.serviceId);
-        if (service && service.auditor_id === auditorId) {
-          return { ...proposal.dataValues, service };
-        }
-        return null;
+        const cleaner = await Cleaner.findByPk(service.cleanerId);
+        const user = await User.findByPk(proposal.userId);
+        return {
+          cleaner: cleaner ? { id: cleaner.cleaner_id, name: cleaner.name } : null,
+          user: user ? { id: user.user_id, name: user.name } : null,
+          imagen_antes: proposal.imagen_antes,
+          imagen_despues: proposal.imagen_despues,
+          service: { id: service.service_id, name: service.service_name },
+          direccion: proposal.direccion
+        };
       })
     );
     
-    res.json(results.filter(item => item !== null));
+    res.json(results);
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -384,13 +402,13 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  * @swagger
  * /auditors/me/proposals/details:
  *   get:
- *     summary: Obtener detalles de las propuestas para los servicios asignados al auditor
+ *     summary: Obtener detalles de las propuestas para un servicio específico asignado al auditor
  *     description: >
- *       Incluye:
- *         - Nombre del cleaner (obtenido desde el Service y su Cleaner asociado)
- *         - Nombre del usuario asociado (User)
+ *       Se requiere pasar el id del servicio por query (?serviceId=). Se retornan:
+ *         - Nombre e id del cleaner (obtenido desde el Service y su Cleaner asociado)
+ *         - Nombre e id del usuario asociado (User)
  *         - Imágenes: imagen_antes e imagen_despues
- *         - Servicio al que pertenece la propuesta
+ *         - Servicio (id y nombre)
  *         - Dirección
  *     tags: [Auditors]
  *     security:
@@ -405,16 +423,31 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  *               items:
  *                 type: object
  *                 properties:
- *                   cleanerName:
- *                     type: string
- *                   userName:
- *                     type: string
+ *                   cleaner:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                   user:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
  *                   imagen_antes:
  *                     type: string
  *                   imagen_despues:
  *                     type: string
  *                   service:
  *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
  *                   direccion:
  *                     type: string
  *       401:
@@ -425,31 +458,40 @@ router.get('/me/proposals', authenticate, async (req, res) => {
 router.get('/me/proposals/details', authenticate, async (req, res) => {
   try {
     const auditorId = req.user.auditor_id;
-    // Obtenemos todas las propuestas
+    const { serviceId } = req.query;
+    if (!serviceId) {
+      return res.status(400).json({ error: 'El id del servicio es requerido' });
+    }
+    
+    // Verificar que el servicio exista y pertenezca al auditor
+    const service = await Service.findByPk(serviceId);
+    if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
+    if (service.auditor_id !== auditorId) {
+      return res.status(403).json({ error: 'No tienes permiso para acceder a este servicio' });
+    }
+    
+    // Obtener las propuestas asociadas al servicio
     const proposals = await Proposal.findAll({
+      where: { serviceId },
       attributes: ['id', 'serviceId', 'userId', 'imagen_antes', 'imagen_despues', 'direccion']
     });
     
     const detailedResults = await Promise.all(
       proposals.map(async proposal => {
-        const service = await Service.findByPk(proposal.serviceId);
-        if (service && service.auditor_id === auditorId) {
-          const cleaner = await Cleaner.findByPk(service.cleanerId);
-          const user = await User.findByPk(proposal.userId);
-          return {
-            cleanerName: cleaner ? cleaner.name : null,
-            userName: user ? user.name : null,
-            imagen_antes: proposal.imagen_antes,
-            imagen_despues: proposal.imagen_despues,
-            service, // Puedes filtrar campos si lo deseas.
-            direccion: proposal.direccion
-          };
-        }
-        return null;
+        const cleaner = await Cleaner.findByPk(service.cleanerId);
+        const user = await User.findByPk(proposal.userId);
+        return {
+          cleaner: cleaner ? { id: cleaner.cleaner_id, name: cleaner.name } : null,
+          user: user ? { id: user.user_id, name: user.name } : null,
+          imagen_antes: proposal.imagen_antes,
+          imagen_despues: proposal.imagen_despues,
+          service: { id: service.service_id, name: service.service_name },
+          direccion: proposal.direccion
+        };
       })
     );
     
-    res.json(detailedResults.filter(item => item !== null));
+    res.json(detailedResults);
   } catch (err) {
     res.status(500).send(err.message);
   }
