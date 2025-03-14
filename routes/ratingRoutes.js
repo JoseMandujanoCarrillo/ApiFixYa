@@ -2,14 +2,14 @@
 const express = require('express');
 const { Op } = require('sequelize');
 const Rating = require('../models/Rating');
-const { authenticate } = require('../middleware/auth'); // Middleware de autenticación
+const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
 /**
  * @swagger
  * tags:
  *   name: Ratings
- *   description: Gestión de calificaciones de servicios
+ *   description: API para la gestión de calificaciones de servicios
  */
 
 /**
@@ -62,8 +62,8 @@ router.get('/', async (req, res) => {
       currentPage: parseInt(page),
       ratings: rows,
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -97,8 +97,8 @@ router.get('/my', authenticate, async (req, res) => {
     const userId = req.user.id; // Se asume que el middleware coloca el id del usuario en req.user.id
     const ratings = await Rating.findAll({ where: { userId } });
     res.json({ ratings });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -112,9 +112,9 @@ router.get('/my', authenticate, async (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
+ *         description: ID de la calificación
  *         schema:
  *           type: integer
- *         description: ID de la calificación
  *     responses:
  *       200:
  *         description: Calificación encontrada
@@ -130,10 +130,12 @@ router.get('/my', authenticate, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const rating = await Rating.findByPk(req.params.id);
-    if (!rating) return res.status(404).json({ error: 'Calificación no encontrada' });
+    if (!rating) {
+      return res.status(404).json({ error: 'Calificación no encontrada' });
+    }
     res.json(rating);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -177,8 +179,8 @@ router.post('/', async (req, res) => {
     const { userId, serviceId, rating, comment } = req.body;
     const newRating = await Rating.create({ userId, serviceId, rating, comment });
     res.status(201).json(newRating);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -221,11 +223,11 @@ router.post('/', async (req, res) => {
 router.post('/create', authenticate, async (req, res) => {
   try {
     const { serviceId, rating, comment } = req.body;
-    const userId = req.user.id; // Se extrae el id del usuario del token
+    const userId = req.user.id;
     const newRating = await Rating.create({ userId, serviceId, rating, comment });
     res.status(201).json(newRating);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -239,9 +241,9 @@ router.post('/create', authenticate, async (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
+ *         description: ID de la calificación
  *         schema:
  *           type: integer
- *         description: ID de la calificación
  *     requestBody:
  *       required: true
  *       content:
@@ -268,14 +270,16 @@ router.post('/create', authenticate, async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const ratingToUpdate = await Rating.findByPk(req.params.id);
-    if (!ratingToUpdate) return res.status(404).json({ error: 'Calificación no encontrada' });
+    if (!ratingToUpdate) {
+      return res.status(404).json({ error: 'Calificación no encontrada' });
+    }
     const { rating, comment } = req.body;
     ratingToUpdate.rating = rating !== undefined ? rating : ratingToUpdate.rating;
     ratingToUpdate.comment = comment !== undefined ? comment : ratingToUpdate.comment;
     await ratingToUpdate.save();
     res.json(ratingToUpdate);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -289,9 +293,9 @@ router.put('/:id', async (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
+ *         description: ID de la calificación
  *         schema:
  *           type: integer
- *         description: ID de la calificación
  *     responses:
  *       200:
  *         description: Calificación eliminada
@@ -303,11 +307,13 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const ratingToDelete = await Rating.findByPk(req.params.id);
-    if (!ratingToDelete) return res.status(404).json({ error: 'Calificación no encontrada' });
+    if (!ratingToDelete) {
+      return res.status(404).json({ error: 'Calificación no encontrada' });
+    }
     await ratingToDelete.destroy();
     res.json({ message: 'Calificación eliminada correctamente' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

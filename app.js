@@ -1,5 +1,6 @@
+// app.js
 const express = require('express');
-const cors = require('cors'); // Se importa el paquete CORS
+const cors = require('cors');
 const setupSwagger = require('./config/swagger');
 const cleanerRoutes = require('./routes/cleanerRoutes');
 const proposalRoutes = require('./routes/proposalRoutes');
@@ -9,15 +10,16 @@ const chatRoutes = require('./routes/chatRoutes');
 const creditCardRoutes = require('./routes/CreditCardRoutes');
 const auditorRoutes = require('./routes/auditorRoutes');
 const mercadopagoRoutes = require('./routes/mercadopago');
+const ratingRoutes = require('./routes/ratingRoutes'); // Importa el router de ratings
 
 const app = express();
 
 // Middleware
 app.use(express.json());
 
-// Configuración de CORS: Puedes ajustar 'origin' según tus necesidades
+// Configuración de CORS
 app.use(cors({
-  origin: '*', // Permite solicitudes desde este origen. Si deseas permitir todos los orígenes, puedes usar '*'
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -33,7 +35,8 @@ app.use('/users', userRoutes);
 app.use('/chats', chatRoutes);
 app.use('/creditcards', creditCardRoutes);
 app.use('/auditors', auditorRoutes);
-app.use('/mercadopago', mercadopagoRoutes); // Se añade la ruta de Mercado Pago
+app.use('/mercadopago', mercadopagoRoutes);
+app.use('/ratings', ratingRoutes); // Agrega la ruta para ratings
 
 // Iniciar el servidor
 const PORT = process.env.PORT || 3000;
