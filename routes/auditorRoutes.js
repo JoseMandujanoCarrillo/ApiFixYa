@@ -1,15 +1,16 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize'); // Se requiere para usar el operador IN en Sequelize
 const Auditor = require('../models/Auditor');
-const Cleaner = require('../models/Cleaner'); // Se requiere para obtener los cleaners
-const Service = require('../models/Service'); // Se requiere para obtener los services
-const Proposal = require('../models/Proposal'); // Se requiere para obtener las propuestas
-const User = require('../models/User'); // Se requiere para obtener el usuario asociado a la propuesta
+const Cleaner = require('../models/Cleaner');
+const Service = require('../models/Service');
+const Proposal = require('../models/Proposal');
+const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
-const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave segura y asegúrate de usar la misma en tu middleware
+const SECRET_KEY = 'your_secret_key'; // Cambia esto por una clave segura
 
 /**
  * @swagger
@@ -153,7 +154,7 @@ router.get('/me', authenticate, async (req, res) => {
  * @swagger
  * /auditors/me/services:
  *   get:
- *     summary: Obtener la lista de servicios y la cantidad para el auditor autenticado
+ *     summary: Obtener la lista de servicios y la cantidad para los cleaners asignados al auditor autenticado
  *     tags: [Auditors]
  *     security:
  *       - bearerAuth: []
@@ -172,11 +173,11 @@ router.get('/me', authenticate, async (req, res) => {
  *                   items:
  *                     type: object
  *                     properties:
- *                       service_id:
+ *                       id:
  *                         type: integer
- *                       service_name:
+ *                       name:
  *                         type: string
- *                       auditor_id:
+ *                       cleanerId:
  *                         type: integer
  *       401:
  *         description: No autorizado
@@ -184,7 +185,21 @@ router.get('/me', authenticate, async (req, res) => {
 router.get('/me/services', authenticate, async (req, res) => {
   try {
     const auditorId = req.user.auditor_id;
-    const services = await Service.findAll({ where: { auditor_id: auditorId } });
+    
+    // Obtener los cleaners asignados al auditor
+    const cleaners = await Cleaner.findAll({ where: { auditor_id: auditorId } });
+    // Se asume que el modelo Cleaner tiene 'id' como clave primaria
+    const cleanerIds = cleaners.map(cleaner => cleaner.id);
+    
+    // Obtener todos los servicios que pertenezcan a alguno de esos cleaners
+    const services = await Service.findAll({
+      where: {
+        cleanerId: {
+          [Op.in]: cleanerIds
+        }
+      }
+    });
+    
     res.json({ servicesCount: services.length, services });
   } catch (err) {
     res.status(500).send(err.message);
@@ -382,7 +397,7 @@ router.get('/me/proposals', authenticate, async (req, res) => {
     // Verificar que el servicio exista y pertenezca al auditor
     const service = await Service.findByPk(serviceId);
     if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
-    if (service.auditor_id !== auditorId) {
+    if (service.auditorId !== auditorId) {
       return res.status(403).json({ error: 'No tienes permiso para acceder a este servicio' });
     }
     
@@ -397,11 +412,11 @@ router.get('/me/proposals', authenticate, async (req, res) => {
         const cleaner = await Cleaner.findByPk(service.cleanerId);
         const user = await User.findByPk(proposal.userId);
         return {
-          cleaner: cleaner ? { id: cleaner.cleaner_id, name: cleaner.name } : null,
-          user: user ? { id: user.user_id, name: user.name } : null,
+          cleaner: cleaner ? { id: cleaner.id, name: cleaner.name } : null,
+          user: user ? { id: user.id, name: user.name } : null,
           imagen_antes: proposal.imagen_antes,
           imagen_despues: proposal.imagen_despues,
-          service: { id: service.service_id, name: service.service_name },
+          service: { id: service.id, name: service.name },
           direccion: proposal.direccion
         };
       })
@@ -489,7 +504,7 @@ router.get('/me/proposals/details', authenticate, async (req, res) => {
     // Verificar que el servicio exista y pertenezca al auditor
     const service = await Service.findByPk(serviceId);
     if (!service) return res.status(404).json({ error: 'Servicio no encontrado' });
-    if (service.auditor_id !== auditorId) {
+    if (service.auditorId !== auditorId) {
       return res.status(403).json({ error: 'No tienes permiso para acceder a este servicio' });
     }
     
@@ -504,11 +519,11 @@ router.get('/me/proposals/details', authenticate, async (req, res) => {
         const cleaner = await Cleaner.findByPk(service.cleanerId);
         const user = await User.findByPk(proposal.userId);
         return {
-          cleaner: cleaner ? { id: cleaner.cleaner_id, name: cleaner.name } : null,
-          user: user ? { id: user.user_id, name: user.name } : null,
+          cleaner: cleaner ? { id: cleaner.id, name: cleaner.name } : null,
+          user: user ? { id: user.id, name: user.name } : null,
           imagen_antes: proposal.imagen_antes,
           imagen_despues: proposal.imagen_despues,
-          service: { id: service.service_id, name: service.service_name },
+          service: { id: service.id, name: service.name },
           direccion: proposal.direccion
         };
       })
