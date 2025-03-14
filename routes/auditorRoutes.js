@@ -344,13 +344,13 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de propuestas para los servicios del auditor
+ *         description: Lista de propuestas para los servicios del auditor.
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Proposal'
+ *                 type: object
  *       401:
  *         description: No autorizado
  *       500:
@@ -359,14 +359,22 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
 router.get('/me/proposals', authenticate, async (req, res) => {
   try {
     const auditorId = req.user.auditor_id;
-    // Se utiliza la asociación entre Proposal y Service para filtrar los servicios asignados al auditor.
+    // Obtenemos todas las propuestas y, para cada una, verificamos si el servicio asociado pertenece al auditor
     const proposals = await Proposal.findAll({
-      include: [{
-        model: Service,
-        where: { auditorId: auditorId }
-      }]
+      attributes: ['id', 'serviceId', 'userId', 'imagen_antes', 'imagen_despues', 'direccion']
     });
-    res.json(proposals);
+    
+    const results = await Promise.all(
+      proposals.map(async proposal => {
+        const service = await Service.findByPk(proposal.serviceId);
+        if (service && service.auditor_id === auditorId) {
+          return { ...proposal.dataValues, service };
+        }
+        return null;
+      })
+    );
+    
+    res.json(results.filter(item => item !== null));
   } catch (err) {
     res.status(500).send(err.message);
   }
@@ -379,7 +387,7 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  *     summary: Obtener detalles de las propuestas para los servicios asignados al auditor
  *     description: >
  *       Incluye:
- *         - Nombre del cleaner (desde Service > Cleaner)
+ *         - Nombre del cleaner (obtenido desde el Service y su Cleaner asociado)
  *         - Nombre del usuario asociado (User)
  *         - Imágenes: imagen_antes e imagen_despues
  *         - Servicio al que pertenece la propuesta
@@ -414,43 +422,34 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
-
 router.get('/me/proposals/details', authenticate, async (req, res) => {
   try {
     const auditorId = req.user.auditor_id;
-    // Se buscan las propuestas cuyo servicio pertenezca al auditor autenticado.
-    // Se incluyen el Service (y su Cleaner) y el User asociados.
+    // Obtenemos todas las propuestas
     const proposals = await Proposal.findAll({
-      include: [
-        {
-          model: Service,
-          where: { auditorId: auditorId },
-          include: [
-            {
-              model: Cleaner,
-              attributes: ['name']
-            }
-          ]
-        },
-        {
-          model: User,
-          attributes: ['name']
-        }
-      ],
-      attributes: ['imagen_antes', 'imagen_despues', 'direccion']
+      attributes: ['id', 'serviceId', 'userId', 'imagen_antes', 'imagen_despues', 'direccion']
     });
-
-    // Se formatea la respuesta para obtener los datos requeridos.
-    const results = proposals.map(proposal => ({
-      cleanerName: proposal.Service.Cleaner.name,
-      userName: proposal.User.name,
-      imagen_antes: proposal.imagen_antes,
-      imagen_despues: proposal.imagen_despues,
-      service: proposal.Service, // Puedes filtrar las propiedades del servicio si es necesario.
-      direccion: proposal.direccion
-    }));
-
-    res.json(results);
+    
+    const detailedResults = await Promise.all(
+      proposals.map(async proposal => {
+        const service = await Service.findByPk(proposal.serviceId);
+        if (service && service.auditor_id === auditorId) {
+          const cleaner = await Cleaner.findByPk(service.cleanerId);
+          const user = await User.findByPk(proposal.userId);
+          return {
+            cleanerName: cleaner ? cleaner.name : null,
+            userName: user ? user.name : null,
+            imagen_antes: proposal.imagen_antes,
+            imagen_despues: proposal.imagen_despues,
+            service, // Puedes filtrar campos si lo deseas.
+            direccion: proposal.direccion
+          };
+        }
+        return null;
+      })
+    );
+    
+    res.json(detailedResults.filter(item => item !== null));
   } catch (err) {
     res.status(500).send(err.message);
   }
