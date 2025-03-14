@@ -350,6 +350,13 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
  *     tags: [Auditors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del servicio
  *     responses:
  *       200:
  *         description: Lista de propuestas para el servicio indicado.
@@ -422,6 +429,13 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  *     tags: [Auditors]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del servicio
  *     responses:
  *       200:
  *         description: Lista de detalles de propuestas.
