@@ -376,12 +376,14 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  * @swagger
  * /auditors/me/proposals/details:
  *   get:
- *     summary: Obtener detalles de las propuestas para los servicios asignados al auditor, incluyendo:
- *              - Nombre del cleaner (desde Service > Cleaner)
- *              - Nombre del usuario asociado (User)
- *              - Imágenes: imagen_antes e imagen_despues
- *              - Servicio al que pertenece la propuesta
- *              - Dirección
+ *     summary: Obtener detalles de las propuestas para los servicios asignados al auditor
+ *     description: >
+ *       Incluye:
+ *         - Nombre del cleaner (desde Service > Cleaner)
+ *         - Nombre del usuario asociado (User)
+ *         - Imágenes: imagen_antes e imagen_despues
+ *         - Servicio al que pertenece la propuesta
+ *         - Dirección
  *     tags: [Auditors]
  *     security:
  *       - bearerAuth: []
@@ -412,6 +414,7 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  *       500:
  *         description: Error en el servidor
  */
+
 router.get('/me/proposals/details', authenticate, async (req, res) => {
   try {
     const auditorId = req.user.auditor_id;
