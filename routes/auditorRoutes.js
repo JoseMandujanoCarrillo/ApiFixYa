@@ -339,18 +339,26 @@ router.patch('/cleaners/:id/verify', authenticate, async (req, res) => {
  * /auditors/me/proposals:
  *   get:
  *     summary: Obtener las propuestas para un servicio específico asignado al auditor
- *     description: Se requiere pasar el id del servicio por query (?serviceId=)
+ *     description: >
+ *       Se requiere pasar el id del servicio por query (?serviceId=).
+ *       Retorna una lista de propuestas para el servicio indicado, incluyendo:
+ *         - Imágenes (imagen_antes e imagen_despues)
+ *         - Información del usuario (id y nombre)
+ *         - Información del cleaner (id y nombre)
+ *         - Datos del servicio (id y nombre)
+ *         - Dirección
  *     tags: [Auditors]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Lista de propuestas para el servicio indicado, incluyendo:
- *           - Imágenes (imagen_antes e imagen_despues)
- *           - Información del usuario (id y nombre)
- *           - Información del cleaner (id y nombre)
- *           - Datos del servicio (id y nombre)
- *           - Dirección
+ *         description: Lista de propuestas para el servicio indicado.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
  *       401:
  *         description: No autorizado
  *       500:
@@ -404,9 +412,10 @@ router.get('/me/proposals', authenticate, async (req, res) => {
  *   get:
  *     summary: Obtener detalles de las propuestas para un servicio específico asignado al auditor
  *     description: >
- *       Se requiere pasar el id del servicio por query (?serviceId=). Se retornan:
- *         - Nombre e id del cleaner (obtenido desde el Service y su Cleaner asociado)
- *         - Nombre e id del usuario asociado (User)
+ *       Se requiere pasar el id del servicio por query (?serviceId=).
+ *       Retorna una lista de propuestas con detalles, incluyendo:
+ *         - Cleaner (id y nombre)
+ *         - Usuario (id y nombre)
  *         - Imágenes: imagen_antes e imagen_despues
  *         - Servicio (id y nombre)
  *         - Dirección
