@@ -321,7 +321,7 @@ router.delete('/:id', async (req, res) => {
  * @swagger
  * /ratings/service/{serviceId}/ratings:
  *   get:
- *     summary: Obtener el número de calificaciones y el promedio para un servicio
+ *     summary: Obtener estadísticas de calificaciones y comentarios para un servicio
  *     tags: [Ratings]
  *     parameters:
  *       - in: path
@@ -332,7 +332,7 @@ router.delete('/:id', async (req, res) => {
  *         description: ID del servicio
  *     responses:
  *       200:
- *         description: Estadísticas de calificaciones para el servicio
+ *         description: Estadísticas de calificaciones para el servicio, incluyendo número total, promedio y comentarios.
  *         content:
  *           application/json:
  *             schema:
@@ -343,6 +343,10 @@ router.delete('/:id', async (req, res) => {
  *                 averageRating:
  *                   type: number
  *                   format: float
+ *                 comments:
+ *                   type: array
+ *                   items:
+ *                     type: string
  *       500:
  *         description: Error del servidor
  */
@@ -361,9 +365,20 @@ router.get('/service/:serviceId/ratings', async (req, res) => {
     if (!averageRating) {
       averageRating = 0;
     }
+    // Obtener los comentarios asociados al servicio (solo aquellos que no sean nulos o vacíos)
+    const commentsData = await Rating.findAll({
+      where: { 
+        serviceId,
+        comment: { [Op.and]: { [Op.ne]: null, [Op.ne]: '' } }
+      },
+      attributes: ['comment'],
+      raw: true,
+    });
+    const comments = commentsData.map(item => item.comment);
     res.json({
       ratingsCount,
       averageRating: parseFloat(parseFloat(averageRating).toFixed(1)),
+      comments,
     });
   } catch (err) {
     res.status(500).send(err.message);
