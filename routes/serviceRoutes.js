@@ -1,3 +1,4 @@
+// File: routes/serviceRoutes.js
 const express = require('express');
 const Service = require('../models/Service');
 const router = express.Router();
@@ -62,21 +63,24 @@ const router = express.Router();
  *                       schedule:
  *                         type: object
  *                         description: Horario del servicio en formato JSON.
+ *                       isCleanFast:
+ *                         type: boolean
+ *                         description: Indica si el servicio es rápido
  *                       createdAt:
  *                         type: string
  *                         format: date-time
  *                       updatedAt:
  *                         type: string
  *                         format: date-time
+ *       500:
+ *         description: Error del servidor
  */
 router.get('/', async (req, res) => {
   try {
     const { page = 1, size = 10 } = req.query;
     const limit = parseInt(size, 10);
     const offset = (parseInt(page, 10) - 1) * limit;
-
     const { count, rows } = await Service.findAndCountAll({ limit, offset });
-
     res.json({
       totalItems: count,
       totalPages: Math.ceil(count / limit),
@@ -126,6 +130,9 @@ router.get('/', async (req, res) => {
  *                 schedule:
  *                   type: object
  *                   description: Horario del servicio en formato JSON.
+ *                 isCleanFast:
+ *                   type: boolean
+ *                   description: Indica si el servicio es rápido
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -173,10 +180,21 @@ router.get('/:id', async (req, res) => {
  *               schedule:
  *                 type: object
  *                 description: Horario del servicio en formato JSON.
- *                 example:
- *                   days: ["lunes", "martes", "miércoles", "jueves", "viernes"]
- *                   startTime: "06:00"
- *                   endTime: "19:00"
+ *               isCleanFast:
+ *                 type: boolean
+ *                 description: Indica si el servicio es rápido
+ *             example:
+ *               cleanerId: 1
+ *               description: "Servicio de limpieza a domicilio"
+ *               price: 100.5
+ *               name: "Limpieza Express"
+ *               imagebyte: ""
+ *               imageUrl: "http://example.com/image.jpg"
+ *               schedule:
+ *                 days: ["lunes", "martes"]
+ *                 startTime: "08:00"
+ *                 endTime: "18:00"
+ *               isCleanFast: false
  *     responses:
  *       201:
  *         description: Servicio creado
@@ -185,8 +203,8 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { cleanerId, description, price, name, imagebyte, imageUrl, schedule } = req.body;
-    const service = await Service.create({ cleanerId, description, price, name, imagebyte, imageUrl, schedule });
+    const { cleanerId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast } = req.body;
+    const service = await Service.create({ cleanerId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast });
     res.status(201).json(service);
   } catch (err) {
     res.status(500).send(err.message);
@@ -228,10 +246,21 @@ router.post('/', async (req, res) => {
  *               schedule:
  *                 type: object
  *                 description: Horario del servicio en formato JSON.
- *                 example:
- *                   days: ["lunes", "martes", "miércoles", "jueves", "viernes"]
- *                   startTime: "06:00"
- *                   endTime: "19:00"
+ *               isCleanFast:
+ *                 type: boolean
+ *                 description: Indica si el servicio es rápido
+ *             example:
+ *               cleanerId: 1
+ *               description: "Actualización del servicio"
+ *               price: 120.0
+ *               name: "Limpieza Express Actualizada"
+ *               imagebyte: ""
+ *               imageUrl: "http://example.com/image_updated.jpg"
+ *               schedule:
+ *                 days: ["lunes", "miércoles"]
+ *                 startTime: "09:00"
+ *                 endTime: "17:00"
+ *               isCleanFast: true
  *     responses:
  *       200:
  *         description: Servicio actualizado

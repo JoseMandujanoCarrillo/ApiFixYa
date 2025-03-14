@@ -55,6 +55,13 @@ const Service = sequelize.define(
       field: 'schedule',
       allowNull: true,
     },
+    // Nuevo campo para indicar si el servicio es rápido
+    isCleanFast: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'isCleanFast',
+    },
     createdAt: {
       type: DataTypes.DATE,
       field: 'created_at',
