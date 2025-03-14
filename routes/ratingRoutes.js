@@ -317,4 +317,57 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /ratings/service/{serviceId}/ratings:
+ *   get:
+ *     summary: Obtener el número de calificaciones y el promedio para un servicio
+ *     tags: [Ratings]
+ *     parameters:
+ *       - in: path
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del servicio
+ *     responses:
+ *       200:
+ *         description: Estadísticas de calificaciones para el servicio
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ratingsCount:
+ *                   type: integer
+ *                 averageRating:
+ *                   type: number
+ *                   format: float
+ *       500:
+ *         description: Error del servidor
+ */
+router.get('/service/:serviceId/ratings', async (req, res) => {
+  try {
+    const serviceId = req.params.serviceId;
+    // Contar la cantidad de calificaciones para el servicio
+    const ratingsCount = await Rating.count({ where: { serviceId } });
+    // Calcular el promedio de calificaciones
+    const averageRatingResult = await Rating.findOne({
+      where: { serviceId },
+      attributes: [[Rating.sequelize.fn('AVG', Rating.sequelize.col('rating')), 'averageRating']],
+      raw: true,
+    });
+    let averageRating = averageRatingResult.averageRating;
+    if (!averageRating) {
+      averageRating = 0;
+    }
+    res.json({
+      ratingsCount,
+      averageRating: parseFloat(parseFloat(averageRating).toFixed(1)),
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
