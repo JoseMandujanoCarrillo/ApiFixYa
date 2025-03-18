@@ -1,4 +1,3 @@
-// File: routes/serviceRoutes.js
 const express = require('express');
 const Service = require('../models/Service');
 const router = express.Router();
@@ -50,6 +49,9 @@ const router = express.Router();
  *                         type: integer
  *                       cleanerId:
  *                         type: integer
+ *                       auditorId:
+ *                         type: integer
+ *                         description: ID del auditor (si existe)
  *                       description:
  *                         type: string
  *                       price:
@@ -66,6 +68,9 @@ const router = express.Router();
  *                       isCleanFast:
  *                         type: boolean
  *                         description: Indica si el servicio es rápido
+ *                       tags:
+ *                         type: object
+ *                         description: Etiquetas del servicio
  *                       createdAt:
  *                         type: string
  *                         format: date-time
@@ -117,6 +122,9 @@ router.get('/', async (req, res) => {
  *                   type: integer
  *                 cleanerId:
  *                   type: integer
+ *                 auditorId:
+ *                   type: integer
+ *                   description: ID del auditor (si existe)
  *                 description:
  *                   type: string
  *                 price:
@@ -133,6 +141,9 @@ router.get('/', async (req, res) => {
  *                 isCleanFast:
  *                   type: boolean
  *                   description: Indica si el servicio es rápido
+ *                 tags:
+ *                   type: object
+ *                   description: Etiquetas del servicio
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -167,6 +178,9 @@ router.get('/:id', async (req, res) => {
  *             properties:
  *               cleanerId:
  *                 type: integer
+ *               auditorId:
+ *                 type: integer
+ *                 description: ID del auditor (opcional)
  *               description:
  *                 type: string
  *               price:
@@ -183,8 +197,12 @@ router.get('/:id', async (req, res) => {
  *               isCleanFast:
  *                 type: boolean
  *                 description: Indica si el servicio es rápido
+ *               tags:
+ *                 type: object
+ *                 description: Etiquetas del servicio
  *             example:
  *               cleanerId: 1
+ *               auditorId: 2
  *               description: "Servicio de limpieza a domicilio"
  *               price: 100.5
  *               name: "Limpieza Express"
@@ -195,6 +213,8 @@ router.get('/:id', async (req, res) => {
  *                 startTime: "08:00"
  *                 endTime: "18:00"
  *               isCleanFast: false
+ *               tags:
+ *                 tipo: "express"
  *     responses:
  *       201:
  *         description: Servicio creado
@@ -203,8 +223,8 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { cleanerId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast } = req.body;
-    const service = await Service.create({ cleanerId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast });
+    const { cleanerId, auditorId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast, tags } = req.body;
+    const service = await Service.create({ cleanerId, auditorId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast, tags });
     res.status(201).json(service);
   } catch (err) {
     res.status(500).send(err.message);
@@ -233,6 +253,9 @@ router.post('/', async (req, res) => {
  *             properties:
  *               cleanerId:
  *                 type: integer
+ *               auditorId:
+ *                 type: integer
+ *                 description: ID del auditor (opcional)
  *               description:
  *                 type: string
  *               price:
@@ -249,8 +272,12 @@ router.post('/', async (req, res) => {
  *               isCleanFast:
  *                 type: boolean
  *                 description: Indica si el servicio es rápido
+ *               tags:
+ *                 type: object
+ *                 description: Etiquetas del servicio
  *             example:
  *               cleanerId: 1
+ *               auditorId: 2
  *               description: "Actualización del servicio"
  *               price: 120.0
  *               name: "Limpieza Express Actualizada"
@@ -261,6 +288,8 @@ router.post('/', async (req, res) => {
  *                 startTime: "09:00"
  *                 endTime: "17:00"
  *               isCleanFast: true
+ *               tags:
+ *                 tipo: "premium"
  *     responses:
  *       200:
  *         description: Servicio actualizado
@@ -273,7 +302,8 @@ router.put('/:id', async (req, res) => {
   try {
     const service = await Service.findByPk(req.params.id);
     if (!service) return res.status(404).send('Service not found');
-    await service.update(req.body);
+    const { cleanerId, auditorId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast, tags } = req.body;
+    await service.update({ cleanerId, auditorId, description, price, name, imagebyte, imageUrl, schedule, isCleanFast, tags });
     res.json(service);
   } catch (err) {
     res.status(500).send(err.message);

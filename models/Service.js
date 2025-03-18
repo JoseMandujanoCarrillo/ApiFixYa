@@ -62,6 +62,10 @@ const Service = sequelize.define(
       defaultValue: false,
       field: 'isCleanFast',
     },
+    tags: {
+      type: DataTypes.JSONB,
+      allowNull: true, // O false según tus necesidades
+    },
     createdAt: {
       type: DataTypes.DATE,
       field: 'created_at',
