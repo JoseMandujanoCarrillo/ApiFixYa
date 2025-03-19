@@ -152,6 +152,97 @@ router.get('/me', authenticate, async (req, res) => {
 
 /**
  * @swagger
+ * /auditors/me:
+ *   patch:
+ *     summary: Editar datos del auditor autenticado
+ *     tags: [Auditors]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       description: Objeto con los campos a actualizar. Se permite actualizar el nombre, email y contraseña.
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Datos actualizados exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 auditor_id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *                 updated_at:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Datos inválidos o correo en uso
+ *       404:
+ *         description: Auditor no encontrado
+ *       500:
+ *         description: Error en el servidor
+ */
+router.patch('/me', authenticate, async (req, res) => {
+  try {
+    const auditorId = req.user.auditor_id;
+    const { name, email, password } = req.body;
+
+    // Buscar al auditor autenticado
+    const auditor = await Auditor.findOne({ where: { auditor_id: auditorId } });
+    if (!auditor) return res.status(404).send('Auditor not found');
+
+    // Si se actualiza el email, verificar que no esté en uso por otro auditor
+    if (email && email !== auditor.email) {
+      const emailExists = await Auditor.findOne({
+        where: {
+          email,
+          auditor_id: { [Op.ne]: auditorId }
+        }
+      });
+      if (emailExists) return res.status(400).send('Email already in use');
+    }
+
+    // Actualizar los campos si fueron proporcionados
+    if (name) auditor.name = name;
+    if (email) auditor.email = email;
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      auditor.password = hashedPassword;
+    }
+
+    await auditor.save();
+
+    res.json({
+      auditor_id: auditor.auditor_id,
+      name: auditor.name,
+      email: auditor.email,
+      created_at: auditor.created_at,
+      updated_at: auditor.updated_at
+    });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
  * /auditors/me/services:
  *   get:
  *     summary: Obtener la lista de servicios y la cantidad para los cleaners asignados al auditor autenticado
@@ -191,7 +282,6 @@ router.get('/me/services', authenticate, async (req, res) => {
     // Se asume que el modelo Cleaner tiene 'id' como clave primaria
     const cleanerIds = cleaners.map(cleaner => cleaner.cleaner_id);
 
-    
     // Obtener todos los servicios que pertenezcan a alguno de esos cleaners
     const services = await Service.findAll({
       where: {
