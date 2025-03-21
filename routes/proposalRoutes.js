@@ -292,6 +292,7 @@ router.post('/', authenticate, async (req, res) => {
       tipodeservicio,
       paymentMethod,
       paymentReferenceId,
+      metroCuadrado // Nuevo campo agregado
     } = req.body;
 
     if (!datetime) {
@@ -332,6 +333,7 @@ router.post('/', authenticate, async (req, res) => {
       tipodeservicio,
       paymentMethod,
       paymentReferenceId,
+      metroCuadrado, // Se guarda el nuevo campo
       status: 'pending'
     });
 
@@ -759,6 +761,8 @@ router.put('/:id/update-cleaner-finished', async (req, res) => {
  *                         type: string
  *                       price:
  *                         type: number
+ *                       metroCuadrado:
+ *                         type: number
  *       500:
  *         description: Error del servidor
  */
@@ -775,9 +779,10 @@ router.get('/finished', async (req, res) => {
     const finishedCount = proposals.length;
 
     const proposalsResult = proposals.map(prop => ({
-      id: prop.proposal_id,
+      id: prop.id,
       status: prop.status,
-      price: prop.Service ? prop.Service.price : null
+      price: prop.Service ? prop.Service.price : null,
+      metroCuadrado: prop.metroCuadrado
     }));
 
     res.json({

@@ -75,6 +75,12 @@ const Proposal = sequelize.define("Proposal", {
     "allowNull": true,
     "field": "imagen_despues"
   },
+  "metroCuadrado": {
+    "type": DataTypes.DECIMAL(10,2),
+    "allowNull": true,
+    "defaultValue": 1,
+    "field": "metro_cuadrado"
+  },
   "createdAt": {
     "type": DataTypes.DATE,
     "defaultValue": DataTypes.NOW,
