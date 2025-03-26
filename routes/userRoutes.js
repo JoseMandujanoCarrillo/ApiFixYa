@@ -382,4 +382,51 @@ router.delete('/notifications/:proposalId', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /users/{id}/public:
+ *   get:
+ *     summary: Obtener datos básicos de un usuario sin autenticación
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del usuario
+ *     responses:
+ *       200:
+ *         description: Nombre, correo e imagen del usuario
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 imageUrl:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Error en el servidor
+ */
+router.get('/:id/public', async (req, res) => {
+  try {
+    const user = await User.findOne({
+      where: { id: req.params.id },
+      attributes: ['id', 'name', 'email', 'imageUrl']
+    });
+    if (!user) return res.status(404).send('User not found');
+    res.json(user);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 module.exports = router;
