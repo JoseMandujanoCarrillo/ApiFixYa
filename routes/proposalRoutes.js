@@ -2,6 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const Proposal = require('../models/Proposal');
 const Service = require('../models/Service'); // Se asume la relación: Proposal.belongsTo(Service, { foreignKey: 'serviceId' });
+const cleaner = require('../models/cleaner');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
@@ -791,6 +792,79 @@ router.get('/finished', async (req, res) => {
       finishedCount,
       proposals: proposalsResult
     });
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+/**
+ * @swagger
+ * /proposals/cleaner/{cleanerId}/finished:
+ *   get:
+ *     summary: Obtener todas las propuestas con estado "finished" de un limpiador específico
+ *     tags: [Proposals]
+ *     parameters:
+ *       - in: path
+ *         name: cleanerId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del limpiador
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas con estado "finished" del limpiador
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   status:
+ *                     type: string
+ *                   precio:
+ *                     type: number
+ *                   metroCuadrado:
+ *                     type: number
+ *       404:
+ *         description: No se encontraron propuestas para el limpiador
+ *       500:
+ *         description: Error del servidor
+ */
+router.get('/cleaner/:cleanerId/finished', async (req, res) => {
+  try {
+    const { cleanerId } = req.params;
+
+    // Buscar los servicios asociados al limpiador
+    const services = await Service.findAll({ where: { cleanerId } });
+    const serviceIds = services.map(service => service.id);
+
+    if (serviceIds.length === 0) {
+      return res.status(404).send('No services found for this cleaner');
+    }
+
+    // Buscar las propuestas con estado "finished" para esos servicios
+    const proposals = await Proposal.findAll({
+      where: {
+        serviceId: { [Op.in]: serviceIds },
+        status: 'finished'
+      }
+    });
+
+    if (proposals.length === 0) {
+      return res.status(404).send('No finished proposals found for this cleaner');
+    }
+
+    const result = proposals.map(prop => ({
+      id: prop.id,
+      status: prop.status,
+      precio: prop.precio,
+      metroCuadrado: prop.metroCuadrado
+    }));
+
+    res.json(result);
   } catch (err) {
     res.status(500).send(err.message);
   }
