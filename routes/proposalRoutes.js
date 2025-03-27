@@ -2,7 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const Proposal = require('../models/Proposal');
 const Service = require('../models/Service'); // Se asume la relación: Proposal.belongsTo(Service, { foreignKey: 'serviceId' });
-const cleaner = require('../models/cleaner');
+const Cleaner = require('../models/Cleaner');
 const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 
