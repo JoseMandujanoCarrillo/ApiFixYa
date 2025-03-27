@@ -870,4 +870,63 @@ router.get('/cleaner/:cleanerId/finished', async (req, res) => {
   }
 });
 
+
+
+/**
+ * @swagger
+ * /proposals/service/{serviceId}:
+ *   get:
+ *     summary: Obtener todas las propuestas asociadas a un servicio específico
+ *     tags: [Proposals]
+ *     parameters:
+ *       - in: path
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID del servicio
+ *     responses:
+ *       200:
+ *         description: Lista de propuestas asociadas al servicio
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   status:
+ *                     type: string
+ *                   precio:
+ *                     type: number
+ *                   metroCuadrado:
+ *                     type: number
+ *       404:
+ *         description: No se encontraron propuestas para el servicio
+ *       500:
+ *         description: Error del servidor
+ */
+router.get('/service/:serviceId', async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    // Buscar todas las propuestas asociadas al servicio
+    const proposals = await Proposal.findAll({
+      where: { serviceId },
+      attributes: ['id', 'status', 'precio', 'metroCuadrado']
+    });
+
+    if (proposals.length === 0) {
+      return res.status(404).send('No proposals found for this service');
+    }
+
+    res.json(proposals);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+
 module.exports = router;
